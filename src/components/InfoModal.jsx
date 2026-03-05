@@ -47,17 +47,14 @@ function StatContent({ data }) {
           </div>
         </div>
       </div>
-
       <p className="stat-bio">
         I'm a CS student at UCLA who likes to make games and other weird interactive
         software. Currently working on Prime Weaver and Rebel Stars.
       </p>
-
       <div>
         <div className="skills-title">SKILLS</div>
         {data.skills.map(s => <SkillBar key={s.name} name={s.name} value={s.value} />)}
       </div>
-
       <div className="stat-links">
         <a href="https://github.com/Destroh33" className="rpg-btn" target="_blank" rel="noreferrer">GITHUB</a>
         <a href="https://www.linkedin.com/in/krishna-tholudur-5b90a5330/" className="rpg-btn purple" target="_blank" rel="noreferrer">LINKEDIN</a>
@@ -70,25 +67,20 @@ function StatContent({ data }) {
 
 function QuestContent({ data }) {
   const typed = useTypewriter(data.description)
-  const done = typed.length >= data.description.length
-
+  const done  = typed.length >= data.description.length
   return (
     <div className="quest-sheet">
       <span className={`quest-status-badge ${data.status}`}>
         {data.status === 'active' ? '★ ACTIVE QUEST' : '✓ COMPLETED'}
       </span>
-
       <h2 className="quest-title">{data.name}</h2>
-
       <p className="quest-desc">
         {typed}
         {!done && <span className="cursor-blink" />}
       </p>
-
       <div className="quest-tags">
         {data.tags.map(t => <span key={t} className="tag">{t}</span>)}
       </div>
-
       {data.embed && (
         <div className="quest-media--video">
           <iframe src={data.embed} frameBorder="0" allowFullScreen title={data.name} />
@@ -99,7 +91,6 @@ function QuestContent({ data }) {
           <img src={data.image} alt={data.name} />
         </div>
       )}
-
       <div className="quest-links">
         {data.github     && <a href={data.github}     className="rpg-btn"        target="_blank" rel="noreferrer">GITHUB</a>}
         {data.play       && <a href={data.play}        className="rpg-btn green"  target="_blank" rel="noreferrer">PLAY DEMO</a>}
@@ -135,10 +126,14 @@ export default function InfoModal({ data, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel rpg-box" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        {type === 'stat'  && <StatContent  data={entity.data} />}
-        {type === 'quest' && <QuestContent data={entity.data} />}
-        {type === 'art'   && <ArtContent   data={entity.data} />}
+        <div className="modal-top-bar">
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="modal-body">
+          {type === 'stat'  && <StatContent  data={entity.data} />}
+          {type === 'quest' && <QuestContent data={entity.data} />}
+          {type === 'art'   && <ArtContent   data={entity.data} />}
+        </div>
       </div>
     </div>
   )

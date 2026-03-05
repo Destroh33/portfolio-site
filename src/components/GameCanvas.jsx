@@ -1,711 +1,655 @@
 import { useRef, useEffect } from 'react'
-import { WORLD_W, buildPlatforms, buildEntities, getZone } from '../data/world'
+import { PROJECTS, ART_PIECES } from '../data/world'
 
-// ─── Physics constants ────────────────────────────────────────────────────────
-const GRAVITY      = 1800
-const JUMP_VY      = -680
-const MOVE_SPEED   = 215
-const INTERACT_DIST = 88
-const PW = 20   // player collision width
-const PH = 52   // player collision height
+// ─── Physics constants ─────────────────────────────────────────────────────
+const GRAVITY       = 1800
+const MAX_SPEED     = 300
+const ACCEL_GND     = 1500
+const ACCEL_AIR     = 380
+const FRICTION_GND  = 1500
+const FRICTION_RAIL = 220
+const JUMP_BASE     = -700
+const JUMP_BONUS    = 130
+const INTERACT_DIST = 72
+const PW = 20, PH = 52
 
-// ─── Cloud layer ──────────────────────────────────────────────────────────────
-const CLOUD_TILE = 750
-const CLOUD_DEFS = [
-  { t: 0.06, fy: 0.07, s: 1.05 },
-  { t: 0.28, fy: 0.13, s: 0.80 },
-  { t: 0.54, fy: 0.06, s: 1.20 },
-  { t: 0.79, fy: 0.11, s: 0.90 },
+// ─── Sprite constants ──────────────────────────────────────────────────────
+const SRC_W = 32, SRC_H = 32
+const DST_SCALE = 2.5
+const DST_W = SRC_W * DST_SCALE
+const DST_H = SRC_H * DST_SCALE
+const ANIM_PERIOD = 0.3
+
+// ─── Layout constants ──────────────────────────────────────────────────────
+const PED_H_IMG  = 90    // pedestal image display height
+const PED_W_IMG  = 90    // pedestal image display width
+const ICON_SIZE  = 64    // 8×8 at PS=8
+const FRAME_W    = 110   // art thumbnail frame total width (incl border)
+const FRAME_H    = 86    // art thumbnail frame total height
+const ITEM_GAP   = 4    // gap between pedestal top and item bottom
+
+// ─── Room config ───────────────────────────────────────────────────────────
+const ROOM_DOORS = {
+  home:     { right: 'projects' },
+  projects: { left:  'home',    right: 'art' },
+  art:      { left:  'projects' },
+}
+const DOOR_W = 56
+
+// ─── Project icon image sources ────────────────────────────────────────────
+const ICON_SRCS = {
+  spider: '/images/primeweaver.png',
+  xwing:  '/images/rebelstarsicon.png',
+  vr:     '/images/vrheadset.png',
+  pin:    '/images/tourguide.png',
+  gun:    '/images/oitcicon.png',
+  slime:  '/images/slime.png',
+}
+
+// ─── Home links ────────────────────────────────────────────────────────────
+const HOME_LINKS = [
+  { label: 'GITHUB',   url: 'https://github.com/Destroh33',                                  color: '#2a1a0a' },
+  { label: 'LINKEDIN', url: 'https://www.linkedin.com/in/krishna-tholudur-5b90a5330/',       color: '#5a2d8a' },
+  { label: 'ITCH.IO',  url: 'https://destroh3.itch.io/',                                     color: '#5c9f3a' },
+  { label: 'RESUME',   url: '/KrishnaTholudurResume.pdf',                                    color: '#2a1a0a' },
 ]
 
-// ─── Draw helpers ─────────────────────────────────────────────────────────────
+// ─── Skatepark ─────────────────────────────────────────────────────────────
+const SKATEPARK_MULT = 2.4
 
-function drawCloud(ctx, cx, cy, s) {
-  ctx.beginPath()
-  ctx.arc(cx,           cy + 5 * s,  18 * s, 0, Math.PI * 2)
-  ctx.arc(cx + 22 * s,  cy - 2 * s,  22 * s, 0, Math.PI * 2)
-  ctx.arc(cx + 46 * s,  cy + 3 * s,  16 * s, 0, Math.PI * 2)
-  ctx.arc(cx + 28 * s,  cy + 12 * s, 13 * s, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  const words = text.split(' ')
+  let line = '', outY = y
+  for (let i = 0; i < words.length; i++) {
+    const test = line + words[i] + ' '
+    if (ctx.measureText(test).width > maxW && i > 0) {
+      ctx.fillText(line.trim(), x, outY)
+      line = words[i] + ' '; outY += lineH
+    } else { line = test }
+  }
+  if (line.trim()) ctx.fillText(line.trim(), x, outY)
+  return outY
 }
 
-function drawClouds(ctx, camX, cW, cH) {
-  const off   = (camX * 0.065) % CLOUD_TILE
-  const tiles = Math.ceil(cW / CLOUD_TILE) + 2
-  ctx.fillStyle   = 'rgba(255,255,255,0.88)'
-  ctx.strokeStyle = 'rgba(160,200,230,0.35)'
-  ctx.lineWidth   = 1
-  for (let tile = -1; tile <= tiles; tile++) {
-    const bx = tile * CLOUD_TILE - off
-    for (const c of CLOUD_DEFS) {
-      const cx = bx + c.t * CLOUD_TILE
-      if (cx + 70 * c.s < 0 || cx > cW + 10) continue
-      drawCloud(ctx, cx, cH * c.fy, c.s)
+// ─── Draw: background ─────────────────────────────────────────────────────
+function drawBackground(ctx, lW, lH) {
+  ctx.fillStyle = '#c4bdb4'
+  ctx.fillRect(0, 0, lW, lH)
+  const BW = 40, BH = 20
+  ctx.fillStyle = '#ddd6cc'
+  for (let row = 0; row <= Math.ceil(lH / BH); row++) {
+    const off = (row % 2) * (BW / 2)
+    for (let col = -1; col <= Math.ceil(lW / BW); col++) {
+      ctx.fillRect(col * BW + off + 1, row * BH + 1, BW - 2, BH - 2)
+    }
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'
+  for (let row = 0; row <= Math.ceil(lH / BH); row++) {
+    const off = (row % 2) * (BW / 2)
+    for (let col = -1; col <= Math.ceil(lW / BW); col++) {
+      ctx.fillRect(col * BW + off + 1, row * BH + 1, BW - 2, 3)
     }
   }
 }
 
-function drawHills(ctx, camX, cW, cH, baseY, amp, period, parallax, color) {
-  const off = camX * parallax
-  ctx.beginPath()
-  ctx.moveTo(-5, cH + 5)
-  for (let x = -5; x <= cW + 5; x += 4) {
-    const wx = x + off
-    const h = Math.sin(wx / period * Math.PI * 2)                     * amp * 0.50
-            + Math.sin(wx / (period * 0.61) * Math.PI * 2 + 1.1)     * amp * 0.32
-            + Math.sin(wx / (period * 1.70) * Math.PI * 2 + 2.4)     * amp * 0.18
-    ctx.lineTo(x, baseY - h)
-  }
-  ctx.lineTo(cW + 5, cH + 5)
-  ctx.closePath()
-  ctx.fillStyle = color
-  ctx.fill()
-}
+// ─── Draw: ground (chunky pixel-art tiles, PX=3 matches pedestal/skater scale) ──
+function drawGround(ctx, groundY, lW, camX) {
+  const PX = 3   // 1 art-pixel = 3 screen-pixels
+  const TW = 48  // tile width  (16 art-px)
+  const TH = 15  // tile row height body (5 art-px)
 
-function drawBackground(ctx, camX, cW, cH) {
-  // Paper-sky gradient
-  const grad = ctx.createLinearGradient(0, 0, 0, cH)
-  grad.addColorStop(0,    '#b4d8f2')
-  grad.addColorStop(0.52, '#d8edc8')
-  grad.addColorStop(1,    '#e4dcc0')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, cW, cH)
+  // Base fill (below tiles)
+  ctx.fillStyle = '#706c68'
+  ctx.fillRect(0, groundY, lW, 80)
 
-  // Notebook ruled lines (screen-fixed – always crisp)
-  ctx.strokeStyle = 'rgba(140,170,210,0.13)'
-  ctx.lineWidth   = 1
-  for (let y = 28; y < cH; y += 28) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cW, y); ctx.stroke()
-  }
-  // Left margin line
-  ctx.strokeStyle = 'rgba(215,130,130,0.17)'
-  ctx.beginPath(); ctx.moveTo(56, 0); ctx.lineTo(56, cH); ctx.stroke()
+  const off1 = Math.round(-(camX % TW))
+  const off2 = Math.round(-((camX + TW / 2) % TW))  // half-tile stagger for row 2
 
-  drawClouds(ctx, camX, cW, cH)
-  drawHills(ctx, camX, cW, cH, cH * 0.81, 58, 920, 0.12, '#aace7a')
-  drawHills(ctx, camX, cW, cH, cH * 0.87, 44, 640, 0.28, '#78b04e')
-}
+  // Row 2 tile fills (staggered)
+  ctx.fillStyle = '#888480'
+  for (let x = off2 - TW; x < lW + TW; x += TW)
+    ctx.fillRect(Math.round(x) + PX, groundY + PX + TH + PX, TW - PX, TH)
 
-function drawPlatform(ctx, plat, camX, cW) {
-  const x = plat.x - camX
-  if (x + plat.w < -60 || x > cW + 60) return
-  const isGround = plat.h > 30
+  // Row 1 tile fills
+  ctx.fillStyle = '#a09890'
+  for (let x = off1 - TW; x < lW + TW; x += TW)
+    ctx.fillRect(Math.round(x) + PX, groundY + PX, TW - PX, TH)
 
-  ctx.fillStyle = isGround ? '#9a7456' : '#c4956a'
-  ctx.fillRect(x, plat.y, plat.w, plat.h)
+  // Row 1 highlight strip (top 1 art-px of each tile)
+  ctx.fillStyle = '#c4bdb4'
+  for (let x = off1 - TW; x < lW + TW; x += TW)
+    ctx.fillRect(Math.round(x) + PX, groundY + PX, TW - PX, PX)
 
-  const grassH = isGround ? 9 : 7
-  ctx.fillStyle = '#5cb85c'
-  ctx.fillRect(x, plat.y, plat.w, grassH)
-  ctx.fillStyle = '#80d080'
-  ctx.fillRect(x, plat.y, plat.w, 2)
-
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = isGround ? 2 : 1.5
-  ctx.strokeRect(x + 0.5, plat.y + 0.5, plat.w - 1, plat.h - 1)
-
-  if (!isGround && plat.w > 40) {
-    ctx.strokeStyle = 'rgba(42,26,10,0.18)'
-    ctx.lineWidth   = 0.8
-    for (let hx = x + 14; hx < x + plat.w - 10; hx += 18) {
-      ctx.beginPath(); ctx.moveTo(hx, plat.y + grassH + 3); ctx.lineTo(hx + 6, plat.y + grassH + 10); ctx.stroke()
-    }
-  }
-}
-
-// ── Helper: wooden post planted in the ground ──────────────────────────────────
-function drawPost(ctx, sx, topY, groundY, w = 7) {
-  ctx.fillStyle   = '#8b6548'
-  ctx.fillRect(sx - w / 2, topY, w, groundY - topY + 10)  // +10 digs into soil
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = 1.5
-  ctx.strokeRect(sx - w / 2, topY, w, groundY - topY + 10)
-}
-
-function drawDecorSign(ctx, entity, camX, groundY, cW) {
-  const sx = entity.x - camX
-  if (sx < -150 || sx > cW + 150) return
-
-  const BW = 172, BH = 58
-  const boardBottom = groundY - 14  // board sits low but post digs in
-  const boardTop    = boardBottom - BH
-
-  drawPost(ctx, sx, boardBottom - 4, groundY)   // post behind board, starts near bottom
-
-  // Board shadow
-  ctx.fillStyle = 'rgba(42,26,10,0.10)'
-  ctx.fillRect(sx - BW / 2 + 4, boardTop + 4, BW, BH)
-
-  // Board (cream paper)
-  ctx.fillStyle = '#fdfaf0'
-  ctx.fillRect(sx - BW / 2, boardTop, BW, BH)
-
-  // Ink border (double)
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = 2.5
-  ctx.strokeRect(sx - BW / 2, boardTop, BW, BH)
-  ctx.lineWidth = 1
-  ctx.strokeRect(sx - BW / 2 + 5, boardTop + 5, BW - 10, BH - 10)
-
-  // Label
-  ctx.textAlign = 'center'
+  // All borders in black
   ctx.fillStyle = '#2a1a0a'
-  ctx.font      = '7px "Press Start 2P", monospace'
-  ctx.fillText(entity.label, sx, boardTop + BH * 0.52)
-  if (entity.data.sub) {
-    ctx.fillStyle = '#6a4a2a'
-    ctx.font      = '6px "Press Start 2P", monospace'
-    ctx.fillText(entity.data.sub, sx, boardTop + BH * 0.78)
-  }
+  ctx.fillRect(0, groundY, lW, PX)                          // top edge
+  ctx.fillRect(0, groundY + PX + TH, lW, PX)               // row 1/2 shared border
+  ctx.fillRect(0, groundY + PX + TH + PX + TH, lW, PX)     // row 2 bottom
+  // Row 1 vertical seams
+  for (let x = off1 - TW; x < lW + TW; x += TW)
+    ctx.fillRect(Math.round(x), groundY, PX, PX + TH + PX)
+  // Row 2 vertical seams (from shared border)
+  for (let x = off2 - TW; x < lW + TW; x += TW)
+    ctx.fillRect(Math.round(x), groundY + PX + TH, PX, PX + TH + PX)
 }
 
-function drawStatSign(ctx, entity, camX, groundY, artImgs, cW) {
-  const sx = entity.x - camX
-  const BW = 240, BH = 302
-  if (sx < -BW || sx > cW + BW) return
-
-  const bx = sx - BW / 2
-  const by = groundY - BH - 6
-
-  // Easel legs (dig into ground)
-  ctx.lineCap = 'round'
-  ctx.strokeStyle = '#6b4e37'
-  ctx.lineWidth   = 7
-  ctx.beginPath(); ctx.moveTo(bx + 20, by + BH - 2); ctx.lineTo(bx - 16, groundY + 10); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(bx + BW - 20, by + BH - 2); ctx.lineTo(bx + BW + 16, groundY + 10); ctx.stroke()
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = 1.5
-  ctx.beginPath(); ctx.moveTo(bx + 20, by + BH - 2); ctx.lineTo(bx - 16, groundY + 10); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(bx + BW - 20, by + BH - 2); ctx.lineTo(bx + BW + 16, groundY + 10); ctx.stroke()
-  ctx.lineCap = 'butt'
-
-  // Board drop shadow
-  ctx.fillStyle = 'rgba(42,26,10,0.12)'
-  ctx.fillRect(bx + 7, by + 7, BW, BH)
-
-  // Board
-  ctx.fillStyle = '#fdfaf0'
-  ctx.fillRect(bx, by, BW, BH)
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = 2.5
-  ctx.strokeRect(bx, by, BW, BH)
-  ctx.lineWidth = 1
-  ctx.strokeRect(bx + 8, by + 8, BW - 16, BH - 16)
-
-  // Header band
-  ctx.fillStyle = '#2a1a0a'
-  ctx.fillRect(bx + 8, by + 8, BW - 16, 27)
-  ctx.font      = '7px "Press Start 2P", monospace'
-  ctx.textAlign = 'center'
-  ctx.fillStyle = '#fdfaf0'
-  ctx.fillText('✦  WHO AM I?  ✦', sx, by + 25)
-
-  // Portrait
-  const imgX = bx + 16, imgY = by + 44
-  const imgW = BW - 32,  imgH = 172
-
-  const portrait = artImgs && artImgs['portrait']
-  if (portrait && portrait.complete && portrait.naturalWidth > 0) {
-    const ia = portrait.naturalWidth / portrait.naturalHeight
-    const ba = imgW / imgH
-    let dw, dh, ddx = 0, ddy = 0
-    if (ia > ba) { dw = imgW; dh = imgW / ia; ddy = (imgH - dh) / 2 }
-    else          { dh = imgH; dw = imgH * ia; ddx = (imgW - dw) / 2 }
-    ctx.drawImage(portrait, imgX + ddx, imgY + ddy, dw, dh)
-  } else {
-    ctx.fillStyle = '#e8e0d0'
-    ctx.fillRect(imgX, imgY, imgW, imgH)
-    ctx.font = '8px "Press Start 2P", monospace'; ctx.fillStyle = '#9a8c7a'
-    ctx.fillText('PORTRAIT', sx, imgY + imgH / 2 + 4)
-  }
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
-  ctx.strokeRect(imgX, imgY, imgW, imgH)
-
-  const ty = imgY + imgH + 14
-  ctx.font = '8px "Press Start 2P", monospace'; ctx.fillStyle = '#2a1a0a'; ctx.textAlign = 'center'
-  ctx.fillText('KRISHNA T.', sx, ty)
-  ctx.font = '5.5px "Press Start 2P", monospace'; ctx.fillStyle = '#5a2d8a'
-  ctx.fillText('LVL 21 · GAME DEV · CS@UCLA', sx, ty + 17)
-  ctx.font = '5px "Press Start 2P", monospace'; ctx.fillStyle = '#5c8f3a'
-  ctx.fillText('[ E ] TALK', sx, ty + 33)
-}
-
-function drawQuestBoard(ctx, entity, camX, groundY, time, cW) {
-  const sx = entity.x - camX
-  if (sx < -160 || sx > cW + 160) return
-
-  const isActive = entity.data.status === 'active'
-  const BW = 142, BH = 124
-  const boardBottom = groundY - 48   // 48px gap between board bottom and ground
-  const boardTop    = boardBottom - BH
-  const bx          = sx - BW / 2
-
-  // Post (single, digs into ground)
-  drawPost(ctx, sx, boardBottom, groundY, 8)
-
-  // Horizontal rail at top of board
-  ctx.fillStyle   = '#8b6548'
-  ctx.fillRect(bx - 6, boardTop - 3, BW + 12, 7)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
-  ctx.strokeRect(bx - 6, boardTop - 3, BW + 12, 7)
-
-  // Paper drop shadow
-  ctx.fillStyle = 'rgba(42,26,10,0.10)'
-  ctx.fillRect(bx + 4, boardTop + 4, BW, BH)
-
-  // Paper note
-  ctx.fillStyle   = isActive ? '#fdfaf0' : '#f0ece0'
-  ctx.fillRect(bx, boardTop, BW, BH)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2
-  ctx.strokeRect(bx, boardTop, BW, BH)
-
-  // Red thumbtack pin
-  ctx.fillStyle = '#c0392b'
-  ctx.beginPath(); ctx.arc(sx, boardTop + 3, 5, 0, Math.PI * 2); ctx.fill()
+// ─── Draw: door ───────────────────────────────────────────────────────────
+function drawDoor(ctx, side, groundY, lW, targetRoom, overrideX) {
+  const DW = DOOR_W, DH = 110
+  const doorX = overrideX !== undefined ? overrideX : (side === 'left' ? 0 : lW - DW)
+  const doorY = groundY - DH
+  ctx.fillStyle = '#5a3d22'; ctx.fillRect(doorX, doorY - 6, DW, DH + 6)
+  ctx.fillStyle = '#7a5534'; ctx.fillRect(doorX + 4, doorY, DW - 8, DH - 4)
+  ctx.fillStyle = '#8a6544'
+  ctx.fillRect(doorX + 10, doorY + 8,  DW - 20, 38)
+  ctx.fillRect(doorX + 10, doorY + 54, DW - 20, 38)
+  const knobX = side === 'left' ? doorX + DW - 12 : doorX + 12
+  ctx.fillStyle = '#d4a84a'
+  ctx.beginPath(); ctx.arc(knobX, doorY + 76, 4, 0, Math.PI * 2); ctx.fill()
   ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.stroke()
-
-  // Ruled lines at bottom of paper
-  ctx.strokeStyle = 'rgba(100,140,180,0.2)'; ctx.lineWidth = 0.5
-  for (let ly = boardTop + 80; ly < boardTop + BH - 8; ly += 10) {
-    ctx.beginPath(); ctx.moveTo(bx + 8, ly); ctx.lineTo(bx + BW - 8, ly); ctx.stroke()
-  }
-
-  // Status icon with pulse
-  const pulse = isActive ? 0.7 + Math.sin(time * 3.2) * 0.3 : 1
-  ctx.globalAlpha = pulse
-  ctx.font = '16px "Press Start 2P", monospace'; ctx.textAlign = 'center'
-  ctx.fillStyle = isActive ? '#c8880a' : '#5c8f3a'
-  ctx.fillText(isActive ? '★' : '✓', sx, boardTop + 32)
-  ctx.globalAlpha = 1
-
-  // Label
-  ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#2a1a0a'
-  const lbl = entity.label.length > 12 ? entity.label.slice(0, 11) + '…' : entity.label
-  ctx.fillText(lbl, sx, boardTop + 54)
-
-  // Status badge
-  ctx.font = '5px "Press Start 2P", monospace'
-  ctx.fillStyle = isActive ? '#c8880a' : '#5c8f3a'
-  ctx.fillText(isActive ? 'ACTIVE' : 'COMPLETE', sx, boardTop + 68)
-}
-
-function drawArtFrame(ctx, entity, camX, groundY, artImgs, cW) {
-  const sx = entity.x - camX
-  if (sx < -200 || sx > cW + 200) return
-
-  const FW = 162, FH = 140
-  const fx = sx - FW / 2
-  const fy = groundY - 270
-
-  // Easel legs (digs into ground) — art frames are on floor easels
-  ctx.lineCap     = 'round'
-  ctx.strokeStyle = '#8b6548'; ctx.lineWidth = 5
-  ctx.beginPath(); ctx.moveTo(fx + 14,      fy + FH - 2); ctx.lineTo(fx - 10,      groundY + 8); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(fx + FW - 14, fy + FH - 2); ctx.lineTo(fx + FW + 10, groundY + 8); ctx.stroke()
   ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
-  ctx.beginPath(); ctx.moveTo(fx + 14,      fy + FH - 2); ctx.lineTo(fx - 10,      groundY + 8); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(fx + FW - 14, fy + FH - 2); ctx.lineTo(fx + FW + 10, groundY + 8); ctx.stroke()
-  ctx.lineCap = 'butt'
-
-  // Drop shadow
-  ctx.fillStyle = 'rgba(42,26,10,0.15)'
-  ctx.fillRect(fx + 5, fy + 5, FW + 14, FH + 14)
-
-  // Outer wooden frame
-  ctx.fillStyle = '#8b6548'
-  ctx.fillRect(fx - 7, fy - 7, FW + 14, FH + 14)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
-  ctx.strokeRect(fx - 7, fy - 7, FW + 14, FH + 14)
-
-  // Inner lighter frame
-  ctx.fillStyle = '#c4956a'
-  ctx.fillRect(fx - 4, fy - 4, FW + 8, FH + 8)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1
-  ctx.strokeRect(fx - 4, fy - 4, FW + 8, FH + 8)
-
-  // Mat
-  ctx.fillStyle = '#f5f0e8'
-  ctx.fillRect(fx, fy, FW, FH)
-
-  // Image with contain-mode aspect ratio
-  const img = artImgs[entity.id]
-  if (img && img.complete && img.naturalWidth > 0) {
-    const ia = img.naturalWidth / img.naturalHeight
-    const ba = FW / FH
-    let dw, dh, ddx = 0, ddy = 0
-    if (ia > ba) { dw = FW; dh = FW / ia; ddy = (FH - dh) / 2 }
-    else          { dh = FH; dw = FH * ia; ddx = (FW - dw) / 2 }
-    ctx.drawImage(img, fx + ddx, fy + ddy, dw, dh)
-  } else {
-    ctx.fillStyle = '#e0d8cc'
-    ctx.fillRect(fx, fy, FW, FH)
-    ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#9a8c7a'
-    ctx.fillText('ART', sx, fy + FH / 2 + 4)
-  }
-
-  // Label tag
-  const tagY = groundY - 122
-  ctx.fillStyle = '#fdfaf0'; ctx.fillRect(sx - 42, tagY, 84, 19)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.strokeRect(sx - 42, tagY, 84, 19)
-  ctx.font = '5px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#2a1a0a'
-  ctx.fillText(entity.label, sx, tagY + 12)
-}
-
-function drawPortal(ctx, entity, camX, groundY, time, cW) {
-  const sx = entity.x - camX
-  if (sx < -220 || sx > cW + 220) return
-
-  const cy    = groundY - 80
-  const pulse = 0.88 + Math.sin(time * 2.2) * 0.12
-  const r     = 54 * pulse
-
-  ctx.fillStyle = 'rgba(42,26,10,0.18)'
-  ctx.beginPath(); ctx.ellipse(sx, groundY - 4, 44, 10, 0, 0, Math.PI * 2); ctx.fill()
-
-  ctx.globalAlpha = 0.22
-  const gr = ctx.createRadialGradient(sx, cy, 0, sx, cy, r + 30)
-  gr.addColorStop(0, 'rgba(200,155,55,0.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
-  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(sx, cy, r + 30, 0, Math.PI * 2); ctx.fill()
-  ctx.globalAlpha = 1
-
-  for (const [rad, alpha, w] of [
-    [r + 9,  0.30, 1.5], [r,      0.80, 2.5],
-    [r - 13, 0.45, 1.5], [r - 23, 0.25, 1.0],
-  ]) {
-    ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2)
-    ctx.strokeStyle = `rgba(42,26,10,${alpha * pulse})`; ctx.lineWidth = w; ctx.stroke()
-  }
-
-  for (let i = 0; i < 8; i++) {
-    const ang = (i / 8) * Math.PI * 2 + time * 1.5
-    ctx.fillStyle = `rgba(180,120,30,${0.75 * pulse})`
-    ctx.fillRect(sx + Math.cos(ang) * (r - 8) - 3, cy + Math.sin(ang) * (r - 8) - 3, 6, 6)
-  }
-
-  ctx.globalAlpha = 0.1 * pulse
-  ctx.fillStyle = '#1a1206'; ctx.beginPath(); ctx.arc(sx, cy, r - 5, 0, Math.PI * 2); ctx.fill()
-  ctx.globalAlpha = 1
-
-  ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#2a1a0a'
-  ctx.fillText('ARENA', sx, cy + r + 22)
-  ctx.font = '5px "Press Start 2P", monospace'; ctx.fillStyle = '#5c8f3a'
-  ctx.fillText('MODE', sx, cy + r + 36)
-}
-
-function drawInteractPrompt(ctx, entity, camX, groundY, time) {
-  const sx = entity.x - camX
-  let promptY
-  if      (entity.type === 'art')    promptY = groundY - 296
-  else if (entity.type === 'portal') promptY = groundY - 168
-  else if (entity.type === 'stat')   promptY = groundY - 336
-  else                               promptY = groundY - 200
-
-  const bob = Math.sin(time * 4.5) * 3
-  const by  = promptY + bob - 22
-
-  const bw = 52, bh = 20
-
-  ctx.fillStyle   = '#fdfaf0'
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineWidth   = 2
-  ctx.fillRect(sx - bw / 2, by, bw, bh)
-  ctx.strokeRect(sx - bw / 2, by, bw, bh)
-
-  // Down-pointing triangle
-  ctx.fillStyle = '#fdfaf0'
-  ctx.beginPath(); ctx.moveTo(sx - 5, by + bh); ctx.lineTo(sx + 5, by + bh); ctx.lineTo(sx, by + bh + 7); ctx.closePath(); ctx.fill()
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2
-  ctx.beginPath(); ctx.moveTo(sx - 5, by + bh - 1); ctx.lineTo(sx, by + bh + 7); ctx.lineTo(sx + 5, by + bh - 1); ctx.stroke()
-
-  ctx.fillStyle = '#2a1a0a'; ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'center'
-  ctx.fillText('[ E ]', sx, by + 13)
-}
-
-// ─── Stick-figure player ──────────────────────────────────────────────────────
-//
-//  Walk cycle uses a proper two-leg alternating gait:
-//   - swing = sin(phase):  +1 = left leg max forward, -1 = right leg max forward
-//   - leftLiftY  = max(0,  cos(phase)) * LIFT  (left foot in air near phase 0)
-//   - rightLiftY = max(0, -cos(phase)) * LIFT  (right foot in air near phase π)
-//   - Arm: contralateral – right arm forward when left leg forward (swing>0)
-//
-
-function drawStickFigure(ctx, player, camX, time) {
-  const sx = Math.floor(player.x - camX + PW / 2)
-  const by = Math.floor(player.y + PH)            // y of feet
-
-  const isMoving  = Math.abs(player.vx) > 10
-  const phase     = player.walkDist * 0.19         // walk-cycle phase
-  const swing     = isMoving ? Math.sin(phase) : 0  // −1…+1
-
-  // Vertical body-bob: highest at mid-swing, lowest at foot-strike
-  const bob = isMoving ? -Math.abs(Math.cos(phase)) * 3 : Math.sin(time * 1.4) * 1.5
-
-  const HEAD_R    = 11
-  const HEAD_Y    = -49   // head center above feet
-  const NECK_Y    = HEAD_Y + HEAD_R   // −38
-  const SHLD_Y    = NECK_Y + 7        // −31
-  const HIP_Y     = -17
-  const STEP      = 17   // max foot offset from body centre
-  const LIFT      = 10   // max foot lift height
-  const ARM_REACH = 13   // arm swing amplitude
-
-  // ── Foot positions ──────────────────────────────────────────────────────────
-  const leftFootX  =  swing * STEP     // +STEP = forward (leading)
-  const rightFootX = -swing * STEP     // opposite leg
-
-  // Foot Y: lifts during the swing-through phase (between foot-strikes)
-  //   Left foot airborne when cos(phase) > 0  (phase ∈ [−π/2, +π/2])
-  //   Right foot airborne when cos(phase) < 0 (phase ∈ [+π/2, +3π/2])
-  const leftLiftY  = isMoving ? Math.max(0,  Math.cos(phase)) * LIFT : 0
-  const rightLiftY = isMoving ? Math.max(0, -Math.cos(phase)) * LIFT : 0
-  const leftFootY  = -leftLiftY
-  const rightFootY = -rightLiftY
-
-  // ── Knee positions (midpoint + slight upward offset for visible bend) ───────
-  const leftKneeX  = (0          + leftFootX)  * 0.5
-  const leftKneeY  = (HIP_Y      + leftFootY)  * 0.5 - 3
-  const rightKneeX = (0          + rightFootX) * 0.5
-  const rightKneeY = (HIP_Y      + rightFootY) * 0.5 - 3
-
-  // ── Arm positions (contralateral: right arm leads when left leg leads) ───────
-  //   When swing > 0 (left leg forward): right arm forward, left arm back
-  const leftHandX  = -8 - swing * ARM_REACH   // back when swing > 0
-  const rightHandX =  8 + swing * ARM_REACH   // forward when swing > 0
-  const HAND_Y     = SHLD_Y + 18
-
-  ctx.save()
-  ctx.translate(sx, by + bob)
-  if (player.facing === 'left') ctx.scale(-1, 1)
-
-  ctx.strokeStyle = '#2a1a0a'
-  ctx.lineCap     = 'round'
-  ctx.lineJoin    = 'round'
-
-  // ── LEGS ──
-  ctx.lineWidth = 2.5
-  // Left leg: hip → knee → foot
-  ctx.beginPath()
-  ctx.moveTo(0, HIP_Y)
-  ctx.lineTo(leftKneeX,  leftKneeY)
-  ctx.lineTo(leftFootX,  leftFootY)
-  ctx.stroke()
-  // Right leg
-  ctx.beginPath()
-  ctx.moveTo(0, HIP_Y)
-  ctx.lineTo(rightKneeX, rightKneeY)
-  ctx.lineTo(rightFootX, rightFootY)
-  ctx.stroke()
-
-  // ── BODY ──
-  ctx.lineWidth = 3
-  ctx.beginPath(); ctx.moveTo(0, NECK_Y); ctx.lineTo(0, HIP_Y); ctx.stroke()
-
-  // ── ARMS ──
-  ctx.lineWidth = 2
-  if (!player.onGround) {
-    // Jumping: both arms raised
-    ctx.beginPath(); ctx.moveTo(-2, SHLD_Y); ctx.lineTo(-16, SHLD_Y - 18); ctx.stroke()
-    ctx.beginPath(); ctx.moveTo( 2, SHLD_Y); ctx.lineTo( 16, SHLD_Y - 18); ctx.stroke()
-  } else {
-    ctx.beginPath(); ctx.moveTo(-2, SHLD_Y); ctx.lineTo(leftHandX,  HAND_Y); ctx.stroke()
-    ctx.beginPath(); ctx.moveTo( 2, SHLD_Y); ctx.lineTo(rightHandX, HAND_Y); ctx.stroke()
-  }
-
-  // ── HEAD ──
-  ctx.beginPath(); ctx.arc(0, HEAD_Y, HEAD_R, 0, Math.PI * 2)
-  ctx.fillStyle = '#fde8c8'; ctx.fill()
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2; ctx.stroke()
-
-  // Eyes
+  ctx.strokeRect(doorX + 0.5, doorY - 6 + 0.5, DW - 1, DH + 5)
+  const roomName = targetRoom === 'skatepark' ? 'SKATE' : targetRoom.toUpperCase()
+  const label = (side === 'left' ? '\u2190 ' : '') + roomName + (side === 'right' ? ' \u2192' : '')
   ctx.fillStyle = '#2a1a0a'
-  ctx.beginPath(); ctx.arc(-4, HEAD_Y - 2, 2, 0, Math.PI * 2); ctx.fill()
-  ctx.beginPath(); ctx.arc( 4, HEAD_Y - 2, 2, 0, Math.PI * 2); ctx.fill()
-
-  // Smile
-  ctx.beginPath(); ctx.arc(0, HEAD_Y + 3, 4, 0.2, Math.PI - 0.2)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5; ctx.stroke()
-
-  ctx.restore()
-
-  // Ground shadow
-  ctx.fillStyle = 'rgba(42,26,10,0.10)'
-  ctx.beginPath(); ctx.ellipse(sx, by + bob + 1, 9, 3, 0, 0, Math.PI * 2); ctx.fill()
+  ctx.font = '5px "Press Start 2P", monospace'
+  ctx.textAlign = 'center'
+  ctx.fillText(label, doorX + DW / 2, doorY - 10)
 }
 
-// ─── Physics ──────────────────────────────────────────────────────────────────
+// ─── Draw: pedestal ───────────────────────────────────────────────────────
+function drawPedestal(ctx, cx, groundY, pedestalImg) {
+  if (pedestalImg && pedestalImg.complete && pedestalImg.naturalWidth > 0) {
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(pedestalImg, cx - PED_W_IMG / 2, groundY - PED_H_IMG + 5, PED_W_IMG, PED_H_IMG)
+  } else {
+    // Canvas fallback
+    const BW=68, BH=10, SW=42, SH=56, CW=62, CH=10
+    const baseY = groundY - BH
+    ctx.fillStyle = '#b0aaa2'; ctx.fillRect(cx - BW/2, baseY, BW, BH)
+    ctx.fillStyle = '#ccc6be'; ctx.fillRect(cx - BW/2, baseY, BW, 3)
+    ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.strokeRect(cx-BW/2+.5, baseY+.5, BW-1, BH-1)
+    const sy = baseY - SH
+    ctx.fillStyle = '#cac4bc'; ctx.fillRect(cx-SW/2, sy, SW, SH)
+    ctx.fillStyle = '#dedad4'; ctx.fillRect(cx-SW/2, sy, 5, SH)
+    ctx.fillStyle = '#a89e94'; ctx.fillRect(cx+SW/2-5, sy, 5, SH)
+    ctx.strokeRect(cx-SW/2+.5, sy+.5, SW-1, SH-1)
+    const cy2 = sy - CH
+    ctx.fillStyle = '#b8b2aa'; ctx.fillRect(cx-CW/2, cy2, CW, CH)
+    ctx.fillStyle = '#e0dcd6'; ctx.fillRect(cx-CW/2, cy2, CW, 3)
+    ctx.strokeRect(cx-CW/2+.5, cy2+.5, CW-1, CH-1)
+  }
+}
 
-function updatePhysics(state, dt, platforms, cW) {
+
+// ─── Draw: art thumbnail (chunky pixel-art frame, 3px/art-pixel) ──────────
+function drawArtThumb(ctx, cx, bottomY, artImg) {
+  const PX = 3   // 1 art-pixel = 3 screen-pixels
+  const B  = 12  // frame border = 4 art-pixels
+  const fx = cx - FRAME_W / 2, fy = bottomY - FRAME_H
+  const IW = FRAME_W - B * 2, IH = FRAME_H - B * 2
+  const ix = fx + B, iy = fy + B
+
+  // Outer black border (1 art-px)
+  ctx.fillStyle = '#2a1a0a'
+  ctx.fillRect(fx, fy, FRAME_W, FRAME_H)
+
+  // Frame body (dark brown)
+  ctx.fillStyle = '#5a3820'
+  ctx.fillRect(fx + PX, fy + PX, FRAME_W - PX * 2, FRAME_H - PX * 2)
+
+  // Top + left highlight (1 art-px strip)
+  ctx.fillStyle = '#9a6848'
+  ctx.fillRect(fx + PX, fy + PX, FRAME_W - PX * 2, PX)  // top
+  ctx.fillRect(fx + PX, fy + PX, PX, FRAME_H - PX * 2)  // left
+
+  // Bottom + right shadow (1 art-px strip)
+  ctx.fillStyle = '#2e1408'
+  ctx.fillRect(fx + PX, fy + FRAME_H - PX * 2, FRAME_W - PX * 2, PX)  // bottom
+  ctx.fillRect(fx + FRAME_W - PX * 2, fy + PX, PX, FRAME_H - PX * 2)  // right
+
+  // Inner black inset line (1 art-px, at edge of image area)
+  ctx.fillStyle = '#2a1a0a'
+  ctx.fillRect(ix - PX, iy - PX, IW + PX * 2, PX)  // top inner
+  ctx.fillRect(ix - PX, iy,      PX, IH)             // left inner
+  ctx.fillRect(ix - PX, iy + IH, IW + PX * 2, PX)   // bottom inner
+  ctx.fillRect(ix + IW, iy - PX, PX, IH + PX)        // right inner
+
+  // Image mat (off-white)
+  ctx.fillStyle = '#f5f0e8'
+  ctx.fillRect(ix, iy, IW, IH)
+
+  // Image
+  if (artImg && artImg.complete && artImg.naturalWidth > 0) {
+    ctx.imageSmoothingEnabled = true
+    const ia = artImg.naturalWidth / artImg.naturalHeight, fa = IW / IH
+    let dw, dh, ddx = 0, ddy = 0
+    if (ia > fa) { dw = IW; dh = IW / ia; ddy = (IH - dh) / 2 }
+    else         { dh = IH; dw = IH * ia; ddx = (IW - dw) / 2 }
+    ctx.drawImage(artImg, ix + ddx, iy + ddy, dw, dh)
+    ctx.imageSmoothingEnabled = false
+  }
+}
+
+// ─── Draw: skatepark platform ─────────────────────────────────────────────
+function drawPlatform(ctx, plat, camX, cW, groundY) {
+  const x = Math.round(plat.x - camX)
+  if (x + plat.w < -80 || x > cW + 80) return
+  if (plat.type === 'rail') {
+    const postH = groundY - (plat.y + plat.h)
+    const px1 = x + 14, px2 = x + plat.w - 18
+    ctx.fillStyle = '#7a6858'
+    ctx.fillRect(px1, plat.y + plat.h, 6, postH + 8)
+    if (plat.w > 60) ctx.fillRect(px2, plat.y + plat.h, 6, postH + 8)
+    ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1
+    ctx.strokeRect(px1+.5, plat.y+plat.h+.5, 5, postH+7)
+    if (plat.w > 60) ctx.strokeRect(px2+.5, plat.y+plat.h+.5, 5, postH+7)
+    ctx.fillStyle = '#c8c0b0'; ctx.fillRect(x, plat.y, plat.w, plat.h)
+    ctx.fillStyle = '#e0d8c8'; ctx.fillRect(x, plat.y, plat.w, 3)
+    ctx.fillStyle = '#a89880'; ctx.fillRect(x, plat.y+plat.h-3, plat.w, 3)
+    ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5; ctx.strokeRect(x+.5, plat.y+.5, plat.w-1, plat.h-1)
+    return
+  }
+  // Box
+  ctx.fillStyle = '#c8c0b4'; ctx.fillRect(x, plat.y, plat.w, plat.h)
+  ctx.fillStyle = '#d8d0c4'; ctx.fillRect(x, plat.y, plat.w, 3)
+  ctx.fillStyle = '#d0c8bc'; ctx.fillRect(x, plat.y, 3, plat.h)
+  ctx.fillStyle = '#a89888'
+  ctx.fillRect(x+3, plat.y+plat.h-3, plat.w-3, 3)
+  ctx.fillRect(x+plat.w-3, plat.y+3, 3, plat.h-3)
+  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.strokeRect(x+.5, plat.y+.5, plat.w-1, plat.h-1)
+}
+
+// ─── Draw: home content (drawn on canvas before player) ───────────────────
+function drawHomeContent(ctx, lW, lH, groundY, portrait, linkRectsOut) {
+  const NAV_H    = 44
+  const panelTop = NAV_H + 12
+  const panelBot = groundY - 12
+  const panelH   = panelBot - panelTop
+  const contentCY = (panelTop + panelBot) / 2
+  const textX     = 60
+  const textMaxW  = lW * 0.52 - 80
+
+  // Semi-transparent paper panel (full height between nav and ground)
+  ctx.fillStyle = 'rgba(253,250,244,0.82)'
+  ctx.fillRect(32, panelTop, lW * 0.88, panelH)
+  ctx.strokeStyle = 'rgba(42,26,10,0.2)'; ctx.lineWidth = 1.5
+  ctx.strokeRect(32.5, panelTop + 0.5, lW * 0.88 - 1, panelH - 1)
+
+  // Portrait (right side, aspect-ratio-correct contain mode)
+  const portSize  = Math.min(220, panelH * 0.72)
+  const portX     = lW * 0.65
+  const portFrameY = contentCY - portSize / 2
+  ctx.fillStyle = '#f0ebd8'
+  ctx.fillRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
+  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2.5
+  ctx.strokeRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
+  if (portrait && portrait.complete && portrait.naturalWidth > 0) {
+    ctx.imageSmoothingEnabled = true
+    const ia = portrait.naturalWidth / portrait.naturalHeight
+    let dw, dh, ddx = 0, ddy = 0
+    if (ia > 1) { dw = portSize; dh = portSize / ia; ddy = (portSize - dh) / 2 }
+    else        { dh = portSize; dw = portSize * ia; ddx = (portSize - dw) / 2 }
+    ctx.drawImage(portrait, portX + ddx, portFrameY + ddy, dw, dh)
+    ctx.imageSmoothingEnabled = false
+  }
+
+  // Left text block — vertically centered around contentCY
+  let ty = contentCY - 100
+  ctx.textAlign = 'left'
+
+  ctx.fillStyle = '#9a8a7a'
+  ctx.font = '9px "Press Start 2P", monospace'
+  ctx.fillText("HI, I'M", textX, ty); ty += 30
+
+  ctx.fillStyle = '#2a1a0a'
+  ctx.font = '22px "Press Start 2P", monospace'
+  ctx.fillText('KRISHNA THOLUDUR', textX, ty); ty += 30
+
+  ctx.fillStyle = '#5a2d8a'
+  ctx.font = '10px "Press Start 2P", monospace'
+  ctx.fillText('CS @ UCLA  \u00b7  SOFTWARE ENGINEER AND GAME DEVELOPER', textX, ty); ty += 28
+
+  ctx.fillStyle = '#3a2a1a'
+  ctx.font = '8px "Press Start 2P", monospace'
+  ty = wrapText(ctx, "I'm a CS student at UCLA who likes to make games and other weird interactive software. Currently working on Prime Weaver and Rebel Stars.", textX, ty, textMaxW, 20)
+  ty += 24
+
+  // Link buttons
+  linkRectsOut.length = 0
+  ctx.font = '7px "Press Start 2P", monospace'
+  const btnH = 26
+  let bx = textX, btnRowY = ty
+  for (const link of HOME_LINKS) {
+    const tw = ctx.measureText(link.label).width
+    const bw = tw + 28
+    if (bx + bw > lW * 0.57 && bx > textX) { bx = textX; btnRowY += btnH + 8 }
+    const by = btnRowY - 18
+    ctx.fillStyle = 'rgba(253,250,244,0.95)'
+    ctx.fillRect(bx, by, bw, btnH)
+    ctx.strokeStyle = link.color; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, btnH)
+    ctx.fillStyle = link.color; ctx.fillText(link.label, bx + 14, by + 17)
+    linkRectsOut.push({ x: bx, y: by, w: bw, h: btnH, url: link.url })
+    bx += bw + 8
+  }
+
+  // Controls hint — pixel key boxes below buttons
+  const kbTop = btnRowY + btnH + 18
+  function drawKey(kx, ky, label, kw) {
+    ctx.font = '5px "Press Start 2P", monospace'
+    const w = kw !== undefined ? kw : Math.max(18, ctx.measureText(label).width + 12)
+    ctx.fillStyle = '#e8e0d0'
+    ctx.fillRect(kx, ky, w, 18)
+    ctx.fillStyle = '#9a9088'
+    ctx.fillRect(kx + 1, ky + 16, w - 2, 2)
+    ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1
+    ctx.strokeRect(kx + 0.5, ky + 0.5, w - 1, 17)
+    ctx.fillStyle = '#2a1a0a'
+    ctx.textAlign = 'center'
+    ctx.fillText(label, kx + w / 2, ky + 12)
+  }
+  const KS = 20
+  drawKey(textX + KS,      kbTop,      'W')
+  drawKey(textX,           kbTop + KS, 'A')
+  drawKey(textX + KS,      kbTop + KS, 'S')
+  drawKey(textX + KS * 2,  kbTop + KS, 'D')
+  drawKey(textX + KS * 4,  kbTop + KS, 'SPC', 44)
+  ctx.fillStyle = '#7a6a5a'
+  ctx.font = '6px "Press Start 2P", monospace'
+  ctx.textAlign = 'left'
+  ctx.fillText('MOVE', textX + 3, kbTop + KS * 2 + 14)
+  ctx.fillText('JUMP', textX + KS * 4 + 3, kbTop + KS * 2 + 14)
+}
+
+// ─── Draw: interact prompt ────────────────────────────────────────────────
+function drawInteractPrompt(ctx, cx, topY, time) {
+  const by = topY + Math.sin(time * 4.5) * 2 - 22
+  const bw = 52, bh = 20
+  ctx.fillStyle = '#fdfaf0'; ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2
+  ctx.fillRect(cx - bw/2, by, bw, bh); ctx.strokeRect(cx - bw/2, by, bw, bh)
+  ctx.fillStyle = '#fdfaf0'
+  ctx.beginPath(); ctx.moveTo(cx-5, by+bh); ctx.lineTo(cx+5, by+bh); ctx.lineTo(cx, by+bh+7); ctx.closePath(); ctx.fill()
+  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2
+  ctx.beginPath(); ctx.moveTo(cx-5, by+bh-1); ctx.lineTo(cx, by+bh+7); ctx.lineTo(cx+5, by+bh-1); ctx.stroke()
+  ctx.fillStyle = '#2a1a0a'; ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'center'
+  ctx.fillText('[ E ]', cx, by + 13)
+}
+
+// ─── Draw: player sprite ──────────────────────────────────────────────────
+function drawSkater(ctx, player, animFrame, spriteSheet, camX) {
+  const sx = Math.round(player.x - camX + PW / 2)
+  const by = Math.round(player.y + PH)
+  const frame = player.onGround ? animFrame : animFrame + 2
+  ctx.save()
+  ctx.imageSmoothingEnabled = false
+  ctx.translate(sx, by)
+  if (player.facing === 'left') ctx.scale(-1, 1)
+  if (spriteSheet.complete && spriteSheet.naturalWidth > 0) {
+    ctx.drawImage(spriteSheet, frame * SRC_W, 0, SRC_W, SRC_H, -DST_W/2, -DST_H, DST_W, DST_H)
+  }
+  ctx.restore()
+  ctx.fillStyle = 'rgba(42,26,10,0.12)'
+  ctx.beginPath(); ctx.ellipse(sx, by+1, 14, 4, 0, 0, Math.PI*2); ctx.fill()
+}
+
+// ─── Draw: score HUD ──────────────────────────────────────────────────────
+function drawScoreHUD(ctx, state, lW) {
+  const x = lW - 185, y = 52
+  ctx.fillStyle = 'rgba(253,250,244,0.92)'
+  ctx.fillRect(x, y, 175, 72)
+  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
+  ctx.strokeRect(x+.5, y+.5, 174, 71)
+  ctx.fillStyle = '#7a6a5a'; ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'left'
+  ctx.fillText('SCORE', x+12, y+18)
+  ctx.fillStyle = '#2a1a0a'; ctx.font = '13px "Press Start 2P", monospace'
+  ctx.fillText(String(Math.floor(state.score)).padStart(7, '0'), x+12, y+38)
+  ctx.font = '6px "Press Start 2P", monospace'
+  ctx.fillStyle = state.combo > 1 ? '#c8880a' : '#7a6a5a'
+  ctx.fillText('x' + state.combo + ' COMBO', x+12, y+58)
+}
+
+// ─── Draw: trick message ──────────────────────────────────────────────────
+function drawTrickMsg(ctx, state, lW, lH) {
+  if (state.trickMsgTimer <= 0 || !state.trickMsg) return
+  const alpha = Math.min(1, state.trickMsgTimer * 1.5)
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = '#2a1a0a'; ctx.font = '12px "Press Start 2P", monospace'; ctx.textAlign = 'center'
+  ctx.fillText(state.trickMsg, lW / 2, lH / 2 - 80)
+  ctx.restore()
+}
+
+// ─── Skatepark builder ────────────────────────────────────────────────────
+function buildSkatepark(lW, groundY) {
+  const W = Math.round(lW * SKATEPARK_MULT)
+  const g = groundY
+  const box  = (x, ya, w, h=22) => ({ x: Math.round(x), y: g-ya, w: Math.round(w), h, type: 'box'  })
+  const rail = (x, ya, w)        => ({ x: Math.round(x), y: g-ya, w: Math.round(w), h: 10, type: 'rail' })
+  return {
+    worldW: W,
+    platforms: [
+      { x: 0, y: groundY, w: W, h: 80, type: 'ground' },
+      // Left section
+      box( lW*0.07,  70, lW*0.12),
+      rail(lW*0.21, 115, lW*0.14),
+      box( lW*0.37,  85, lW*0.09),
+      box( lW*0.48, 155, lW*0.07),
+      rail(lW*0.57,  70, lW*0.15),
+      box( lW*0.74,  95, lW*0.09),
+      rail(lW*0.85, 135, lW*0.12),
+      // Mid section
+      box( lW*1.04,  75, lW*0.10),
+      rail(lW*1.16, 120, lW*0.16),
+      box( lW*1.34,  65, lW*0.08),
+      box( lW*1.44, 145, lW*0.07),
+      rail(lW*1.53,  90, lW*0.18),
+      box( lW*1.73,  75, lW*0.09),
+      box( lW*1.84, 165, lW*0.07),
+      rail(lW*1.93,  65, lW*0.14),
+      // Right section
+      box( lW*2.10,  80, lW*0.10),
+      rail(lW*2.22, 125, lW*0.17),
+      box( lW*2.41,  72, lW*0.08),
+      rail(lW*2.51, 105, lW*0.22),
+      box( lW*2.75,  88, lW*0.10),
+    ]
+  }
+}
+
+// ─── Room entity builder ──────────────────────────────────────────────────
+function getEntitiesForRoom(room, lW) {
+  if (room === 'projects') {
+    const n = PROJECTS.length
+    return PROJECTS.map((p, i) => ({
+      id: p.id, type: 'project',
+      cx: Math.round(lW / (n + 1) * (i + 1)),
+      label: p.name, icon: p.icon, data: p,
+    }))
+  }
+  if (room === 'art') {
+    const n = ART_PIECES.length
+    return ART_PIECES.map((a, i) => ({
+      id: a.id, type: 'art',
+      cx: Math.round(lW / (n + 1) * (i + 1)),
+      label: a.name, data: a,
+    }))
+  }
+  return []
+}
+
+// ─── Physics ──────────────────────────────────────────────────────────────
+function updatePhysics(state, dt, lW, groundY, platforms, skateparkWorldW) {
   const { player, keys } = state
-
   const goLeft  = keys.has('ArrowLeft')  || keys.has('KeyA')
   const goRight = keys.has('ArrowRight') || keys.has('KeyD')
   const jump    = keys.has('ArrowUp')    || keys.has('KeyW') || keys.has('Space')
+  const dir = goRight ? 1 : goLeft ? -1 : 0
 
-  if (goLeft) {
-    player.vx = -MOVE_SPEED; player.facing = 'left'; player.walkTarget = null
-  } else if (goRight) {
-    player.vx = MOVE_SPEED;  player.facing = 'right'; player.walkTarget = null
+  if (dir !== 0) {
+    const accel = player.onGround ? ACCEL_GND : ACCEL_AIR
+    player.vx += dir * accel * dt
+    player.vx  = Math.sign(player.vx) * Math.min(Math.abs(player.vx), MAX_SPEED)
+    player.facing = dir > 0 ? 'right' : 'left'
+    player.walkTarget = null
   } else if (player.walkTarget !== null) {
     const dx = player.walkTarget - (player.x + PW / 2)
-    if (Math.abs(dx) < 5) {
-      player.vx = 0; player.walkTarget = null
-    } else {
-      player.vx     = dx > 0 ? MOVE_SPEED : -MOVE_SPEED
-      player.facing = dx > 0 ? 'right'    : 'left'
-    }
+    if (Math.abs(dx) < 5) { player.vx = 0; player.walkTarget = null }
+    else { player.vx = (dx > 0 ? 1 : -1) * MAX_SPEED * 0.65; player.facing = dx > 0 ? 'right' : 'left' }
   } else {
-    player.vx = 0
+    const friction = (player.onRail ? FRICTION_RAIL : FRICTION_GND) * dt
+    if (Math.abs(player.vx) <= friction) player.vx = 0
+    else player.vx -= Math.sign(player.vx) * friction
   }
 
   if (jump && player.onGround) {
-    player.vy = JUMP_VY; player.onGround = false; player.walkTarget = null
+    const speedFactor = Math.min(Math.abs(player.vx) / MAX_SPEED, 1)
+    player.vy = JUMP_BASE - speedFactor * JUMP_BONUS
+    player.onGround = false; player.onRail = false; player.walkTarget = null
   }
 
-  player.vy = Math.min(player.vy + GRAVITY * dt, 950)
-
+  player.vy = Math.min(player.vy + GRAVITY * dt, 980)
   player.x += player.vx * dt
-  player.x  = Math.max(0, Math.min(WORLD_W - PW, player.x))
+  const maxX = skateparkWorldW > 0 ? skateparkWorldW - PW : lW - PW
+  player.x = Math.max(0, Math.min(maxX, player.x))
 
   const prevY = player.y
-  player.y   += player.vy * dt
-  player.onGround = false
+  player.y += player.vy * dt
+  player.onGround = false; player.onRail = false
 
-  for (const plat of platforms) {
-    const pR = player.x + PW - 2, pL = player.x + 2
-    if (pR <= plat.x || pL >= plat.x + plat.w) continue
-    const pBottom = player.y + PH, platTop = plat.y
-    if (player.vy >= 0 && pBottom >= platTop && pBottom <= platTop + plat.h && prevY + PH <= platTop + 12) {
-      player.y = platTop - PH; player.vy = 0; player.onGround = true; break
+  if (platforms.length > 0) {
+    for (const plat of platforms) {
+      if (plat.type === 'ground') {
+        if (player.vy >= 0 && player.y + PH >= plat.y && prevY + PH <= plat.y + 16) {
+          player.y = plat.y - PH; player.vy = 0; player.onGround = true
+        }
+      } else {
+        const pR = player.x + PW - 2, pL = player.x + 2
+        if (pR <= plat.x || pL >= plat.x + plat.w) continue
+        const pBottom = player.y + PH, platTop = plat.y
+        if (player.vy >= 0 && pBottom >= platTop && pBottom <= platTop + plat.h && prevY + PH <= platTop + 16) {
+          player.y = platTop - PH; player.vy = 0; player.onGround = true
+          player.onRail = (plat.type === 'rail'); break
+        }
+      }
+    }
+  } else {
+    if (player.vy >= 0 && player.y + PH >= groundY && prevY + PH <= groundY + 16) {
+      player.y = groundY - PH; player.vy = 0; player.onGround = true
     }
   }
 
-  if (Math.abs(player.vx) > 10) player.walkDist += Math.abs(player.vx) * dt
-
-  // Camera lerp
-  const targetCamX = player.x - cW * 0.35
-  state.camera.x  += (targetCamX - state.camera.x) * 0.1
-  state.camera.x   = Math.max(0, Math.min(WORLD_W - cW, state.camera.x))
-  if (WORLD_W < cW) state.camera.x = 0
-
-  // Fell off map
-  const groundY = platforms[0]?.y ?? 0
-  if (player.y > groundY + 220) {
-    if (player.x > 5700 && player.x < 5960) player.x = 5680
+  if (player.y + PH > groundY + 300) {
     player.y = groundY - PH; player.vy = 0; player.vx = 0; player.walkTarget = null
   }
-}
 
-// ─── Main render ──────────────────────────────────────────────────────────────
-
-function renderAll(ctx, state, platforms, entities, artImgs, groundY, nearEntity, cW, cH) {
-  const camX = state.camera.x
-  const time  = state.time
-
-  ctx.clearRect(0, 0, cW, cH)
-  drawBackground(ctx, camX, cW, cH)
-
-  for (const plat of platforms)  drawPlatform(ctx, plat, camX, cW)
-
-  for (const entity of entities) {
-    if (entity.type === 'sign')   { drawDecorSign(ctx, entity, camX, groundY, cW);          continue }
-    if (entity.type === 'stat')   { drawStatSign(ctx, entity, camX, groundY, artImgs, cW);  continue }
-    if (entity.type === 'quest')  { drawQuestBoard(ctx, entity, camX, groundY, time, cW);   continue }
-    if (entity.type === 'art')    { drawArtFrame(ctx, entity, camX, groundY, artImgs, cW);  continue }
-    if (entity.type === 'portal') { drawPortal(ctx, entity, camX, groundY, time, cW);       continue }
-  }
-
-  if (nearEntity) drawInteractPrompt(ctx, nearEntity, camX, groundY, time)
-
-  drawStickFigure(ctx, state.player, camX, time)
-
-  // Walk-target crosshair
-  if (state.player.walkTarget !== null) {
-    const tx = state.player.walkTarget - camX
-    const ty = groundY - 6
-    ctx.globalAlpha = 0.5
-    ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2; ctx.lineCap = 'round'
-    ctx.beginPath(); ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.stroke()
-    ctx.beginPath(); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke()
-    ctx.lineCap = 'butt'; ctx.globalAlpha = 1
+  // Camera (skatepark only)
+  if (skateparkWorldW > 0) {
+    const target = player.x - lW * 0.38
+    state.camera.x += (target - state.camera.x) * 0.1
+    state.camera.x = Math.max(0, Math.min(skateparkWorldW - lW, state.camera.x))
+  } else {
+    state.camera.x = 0
   }
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export default function GameCanvas({ onOpenModal, onOpenMiniGame, onZoneChange, paused }) {
-  const canvasRef = useRef(null)
-  const stateRef  = useRef(null)
-  const animRef   = useRef(null)
-  const pausedRef = useRef(paused)
-  const cbRef     = useRef({ onOpenModal, onOpenMiniGame, onZoneChange })
+// ─── Component ────────────────────────────────────────────────────────────
+export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) {
+  const canvasRef           = useRef(null)
+  const stateRef            = useRef(null)
+  const animRef             = useRef(null)
+  const pausedRef           = useRef(paused)
+  const cbRef               = useRef({ onRoomChange, onOpenModal })
+  const roomRef             = useRef(room)
+  const pendingSpawnRef     = useRef(null)
+  const pendingSpawnSideRef = useRef(null)
 
   pausedRef.current = paused
-  cbRef.current     = { onOpenModal, onOpenMiniGame, onZoneChange }
+  cbRef.current     = { onRoomChange, onOpenModal }
+
+  useEffect(() => {
+    roomRef.current         = room
+    pendingSpawnRef.current = pendingSpawnSideRef.current ?? 'left'
+  }, [room])
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx    = canvas.getContext('2d')
 
-    // Logical (CSS-pixel) dimensions — DPR-independent coordinate space
-    let logicalW = 0, logicalH = 0
-    let platforms, entities, groundY, artImgs = {}
+    const spriteSheet = new Image(); spriteSheet.src = '/images/skateboardersheet.png'
+    const pedestalImg = new Image(); pedestalImg.src = '/images/pedestal.png'
 
-    function rebuild() {
-      groundY  = logicalH - 80
-      platforms = buildPlatforms(groundY)
-      entities  = buildEntities(groundY)
-      for (const e of entities) {
-        if (e.type === 'art' && !artImgs[e.id]) {
-          const img = new Image(); img.src = e.data.src; artImgs[e.id] = img
-        }
-      }
-      if (!artImgs['portrait']) {
-        const img = new Image(); img.src = '/images/gcprofile.png'; artImgs['portrait'] = img
+    const artImgs = {}
+    for (const a of ART_PIECES) {
+      const img = new Image(); img.src = a.src; artImgs[a.id] = img
+    }
+    artImgs['portrait'] = new Image(); artImgs['portrait'].src = '/images/gcprofile.png'
+
+    const iconImgs = {}
+    for (const [key, src] of Object.entries(ICON_SRCS)) {
+      const img = new Image(); img.src = src; iconImgs[key] = img
+    }
+
+    let logicalW = 0, logicalH = 0, groundY = 0
+    let entities = [], platforms = [], skateparkWorldW = 0
+    const homeLinkRects = []
+
+    function rebuildRoom() {
+      groundY = logicalH - 80
+      entities = getEntitiesForRoom(roomRef.current, logicalW)
+      if (roomRef.current === 'skatepark') {
+        const sk = buildSkatepark(logicalW, groundY)
+        platforms = sk.platforms; skateparkWorldW = sk.worldW
+      } else {
+        platforms = []; skateparkWorldW = 0
       }
     }
 
     function resize() {
-      // Use Math.round to avoid fractional DPR values (e.g. 1.5 on some devices)
       const dpr = Math.round(window.devicePixelRatio || 1)
-      logicalW = window.innerWidth
-      logicalH = window.innerHeight
+      logicalW = window.innerWidth; logicalH = window.innerHeight
       canvas.width        = logicalW * dpr
       canvas.height       = logicalH * dpr
       canvas.style.width  = logicalW + 'px'
       canvas.style.height = logicalH + 'px'
-      // Reset context transform each time (canvas resize resets it)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      rebuild()
+      rebuildRoom()
       if (stateRef.current) {
         const gY = logicalH - 80
-        const p  = stateRef.current.player
-        if (p.y > gY - PH) p.y = gY - PH
+        if (stateRef.current.player.y > gY - PH) stateRef.current.player.y = gY - PH
       }
     }
 
     resize()
 
     const state = {
-      player: {
-        x: 80, y: groundY - PH,
-        vx: 0, vy: 0,
-        onGround: true, facing: 'right',
-        walkDist: 0, walkTarget: null,
-      },
-      camera: { x: 0 },
-      keys: new Set(),
-      time: 0,
-      nearEntityId: null,
-      currentZone: null,
+      player: { x: 80, y: groundY - PH, vx: 0, vy: 0, onGround: true, onRail: false, facing: 'right', walkTarget: null },
+      keys:          new Set(),
+      camera:        { x: 0 },
+      time:          0,
+      animTimer:     0,
+      animFrame:     0,
+      transitionCD:  0,
+      nearEntityId:  null,
+      score:         0,
+      combo:         1,
+      airTime:       0,
+      railTime:      0,
+      comboTimer:    0,
+      trickMsg:      '',
+      trickMsgTimer: 0,
+      prevOnGround:  true,
+      prevOnRail:    false,
     }
     stateRef.current = state
 
     function handleInteract(entity) {
       if (!entity) return
-      if (entity.type === 'portal') cbRef.current.onOpenMiniGame()
-      else                          cbRef.current.onOpenModal({ type: entity.type, entity })
+      if (entity.type === 'project') {
+        cbRef.current.onOpenModal({ type: 'quest', entity: { data: entity.data } })
+      } else if (entity.type === 'art') {
+        cbRef.current.onOpenModal({ type: 'art', entity: { data: { src: entity.data.src, caption: entity.data.caption } } })
+      }
     }
 
     function onKeyDown(e) {
@@ -721,54 +665,223 @@ export default function GameCanvas({ onOpenModal, onOpenMiniGame, onZoneChange, 
 
     function onCanvasClick(e) {
       if (pausedRef.current) return
-      const rect = canvas.getBoundingClientRect()
-      // Scale from CSS pixels to logical pixels (handles page zoom)
-      const scaleX      = logicalW / rect.width
-      const clickWorldX = (e.clientX - rect.left) * scaleX + state.camera.x
-      const playerCX    = state.player.x + PW / 2
+      const rect   = canvas.getBoundingClientRect()
+      const scaleX = logicalW / rect.width
+      const scaleY = logicalH / rect.height
+      const clickX = (e.clientX - rect.left) * scaleX
+      const clickY = (e.clientY - rect.top)  * scaleY
+      const currentRoom = roomRef.current
 
-      for (const entity of entities) {
-        if (entity.type === 'sign') continue
-        const clickDist  = Math.abs(clickWorldX - entity.x)
-        const playerDist = Math.abs(playerCX    - entity.x)
-        if (clickDist < 80 && playerDist < INTERACT_DIST) { handleInteract(entity); return }
+      if (currentRoom === 'home') {
+        for (const lr of homeLinkRects) {
+          if (clickX >= lr.x && clickX <= lr.x + lr.w && clickY >= lr.y && clickY <= lr.y + lr.h) {
+            window.open(lr.url, '_blank', 'noopener,noreferrer'); return
+          }
+        }
+        state.player.walkTarget = clickX; return
       }
-      state.player.walkTarget = clickWorldX
+
+      const playerCX = state.player.x + PW / 2
+      for (const entity of entities) {
+        if (Math.abs(clickX - entity.cx) < 60 && Math.abs(playerCX - entity.cx) < INTERACT_DIST) {
+          handleInteract(entity); return
+        }
+      }
+      state.player.walkTarget = currentRoom === 'skatepark' ? clickX + state.camera.x : clickX
+    }
+
+    function onMouseMove(e) {
+      if (roomRef.current !== 'home') { canvas.style.cursor = 'crosshair'; return }
+      const rect = canvas.getBoundingClientRect()
+      const x = (e.clientX - rect.left) * (logicalW / rect.width)
+      const y = (e.clientY - rect.top)  * (logicalH / rect.height)
+      canvas.style.cursor = homeLinkRects.some(r => x >= r.x && x <= r.x+r.w && y >= r.y && y <= r.y+r.h) ? 'pointer' : 'crosshair'
     }
 
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('keyup',   onKeyUp)
-    canvas.addEventListener('click', onCanvasClick)
-    window.addEventListener('resize', resize, { passive: true })
+    canvas.addEventListener('click',     onCanvasClick)
+    canvas.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('resize',    resize, { passive: true })
 
     let lastTime = performance.now()
 
     function loop(now) {
       const dt = Math.min((now - lastTime) / 1000, 0.033)
-      lastTime  = now
+      lastTime = now
       state.time += dt
 
       if (!pausedRef.current) {
-        updatePhysics(state, dt, platforms, logicalW)
+        // Handle room transition spawn
+        if (pendingSpawnRef.current !== null) {
+          const gY = logicalH - 80, lW = logicalW
+          const side = pendingSpawnRef.current
+          state.player.x        = side === 'left' ? 90 : lW - PW - 90
+          state.player.y        = gY - PH
+          state.player.vx       = side === 'left' ? 120 : -120
+          state.player.vy       = 0
+          state.player.onGround = true; state.player.onRail = false
+          state.player.facing   = side === 'left' ? 'right' : 'left'
+          state.player.walkTarget = null
+          state.transitionCD    = 0.9
+          state.camera.x        = 0
+          pendingSpawnRef.current = null
+          groundY = gY; rebuildRoom()
+        }
 
+        updatePhysics(state, dt, logicalW, groundY, platforms, skateparkWorldW)
+        state.transitionCD = Math.max(0, state.transitionCD - dt)
+
+        // Door detection
+        if (state.transitionCD <= 0) {
+          const doors    = ROOM_DOORS[roomRef.current] || {}
+          const playerCX = state.player.x + PW / 2
+          const viewCX   = roomRef.current === 'skatepark' ? playerCX - state.camera.x : playerCX
+          if (doors.left && (roomRef.current === 'skatepark' ? playerCX < DOOR_W : viewCX < DOOR_W)) {
+            pendingSpawnSideRef.current = 'right'
+            state.transitionCD = 1.0
+            cbRef.current.onRoomChange(doors.left)
+          } else if (doors.right && viewCX > logicalW - DOOR_W) {
+            pendingSpawnSideRef.current = 'left'
+            state.transitionCD = 1.0
+            cbRef.current.onRoomChange(doors.right)
+          }
+        }
+
+        // Animation (falling plays at 3× speed)
+        const period = state.player.onGround ? ANIM_PERIOD : ANIM_PERIOD / 3
+        state.animTimer += dt
+        if (state.animTimer >= period) {
+          state.animTimer -= period
+          state.animFrame = state.animFrame === 0 ? 1 : 0
+        }
+
+        // Trick scoring (skatepark only)
+        if (roomRef.current === 'skatepark') {
+          const p = state.player
+          const wasOnGround = state.prevOnGround
+          const wasOnRail   = state.prevOnRail
+
+          if (p.onRail) {
+            state.railTime += dt
+            state.score += dt * 15
+          } else if (wasOnRail && !p.onRail) {
+            const pts = Math.round(state.railTime * 250 * state.combo)
+            state.score += pts
+            state.combo = Math.min(state.combo + 1, 8)
+            state.trickMsg = 'GRIND!  +' + pts
+            state.trickMsgTimer = 2.0
+            state.railTime = 0
+          }
+
+          if (!p.onGround && !p.onRail) {
+            state.airTime += dt
+          } else if (p.onGround && !wasOnGround && !wasOnRail && state.airTime > 0.4) {
+            const pts = Math.round(state.airTime * 200 * state.combo)
+            state.score += pts
+            if (state.airTime > 0.9) state.combo = Math.min(state.combo + 1, 8)
+            state.trickMsg = 'AIR!  +' + pts
+            state.trickMsgTimer = 2.0
+            state.airTime = 0
+          } else if (p.onGround && state.airTime > 0 && state.airTime <= 0.4) {
+            state.airTime = 0
+          }
+
+          if (p.onGround && !p.onRail && Math.abs(p.vx) < 15) {
+            state.comboTimer += dt
+            if (state.comboTimer > 4.0) { state.combo = 1; state.comboTimer = 0 }
+          } else { state.comboTimer = 0 }
+
+          state.trickMsgTimer = Math.max(0, state.trickMsgTimer - dt)
+          state.prevOnGround = p.onGround
+          state.prevOnRail   = p.onRail
+        }
+
+        // Nearest interactable
         const playerCX = state.player.x + PW / 2
         let nearEntity = null, nearDist = INTERACT_DIST
         for (const e of entities) {
-          if (e.type === 'sign') continue
-          const d = Math.abs(playerCX - e.x)
+          const d = Math.abs(playerCX - e.cx)
           if (d < nearDist) { nearDist = d; nearEntity = e }
         }
         state.nearEntityId = nearEntity?.id ?? null
+      }
 
-        const newZone = getZone(state.player.x)
-        if (newZone !== state.currentZone) {
-          state.currentZone = newZone
-          cbRef.current.onZoneChange(newZone)
+      // ── Render ──
+      const camX = state.camera.x
+      ctx.imageSmoothingEnabled = false
+      ctx.clearRect(0, 0, logicalW, logicalH)
+
+      drawBackground(ctx, logicalW, logicalH)
+      drawGround(ctx, groundY, logicalW, camX)
+
+      // Home room content (rendered before player so player goes in front)
+      if (roomRef.current === 'home') {
+        drawHomeContent(ctx, logicalW, logicalH, groundY, artImgs['portrait'], homeLinkRects)
+      }
+
+      const doors = ROOM_DOORS[roomRef.current] || {}
+      if (roomRef.current === 'skatepark') {
+        // Draw all skatepark platforms (not ground — handled by drawGround)
+        for (const plat of platforms) {
+          if (plat.type !== 'ground') drawPlatform(ctx, plat, camX, logicalW, groundY)
+        }
+        // Draw left door in world space
+        if (doors.left) {
+          const doorScrX = Math.round(-camX)
+          if (doorScrX > -DOOR_W && doorScrX < logicalW) {
+            drawDoor(ctx, 'left', groundY, logicalW, doors.left, doorScrX)
+          }
+        }
+      } else {
+        if (doors.left)  drawDoor(ctx, 'left',  groundY, logicalW, doors.left)
+        if (doors.right) drawDoor(ctx, 'right', groundY, logicalW, doors.right)
+      }
+
+      // Project / art entities
+      if (entities.length > 0) {
+        const itemBottomY = groundY - PED_H_IMG - ITEM_GAP
+        const nearId = state.nearEntityId
+        for (const e of entities) {
+          drawPedestal(ctx, e.cx, groundY-3, pedestalImg)
+          if (e.type === 'project') {
+            const iImg = iconImgs[e.icon]
+            ctx.imageSmoothingEnabled = false
+            if (iImg && iImg.complete && iImg.naturalWidth > 0)
+              ctx.drawImage(iImg, e.cx - ICON_SIZE / 2, itemBottomY - ICON_SIZE, ICON_SIZE, ICON_SIZE)
+            ctx.fillStyle = '#2a1a0a'; ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'center'
+            const short = e.label.length > 12 ? e.label.slice(0, 11) + '\u2026' : e.label
+            ctx.fillText(short, e.cx, itemBottomY - ICON_SIZE - 8)
+          } else if (e.type === 'art') {
+            drawArtThumb(ctx, e.cx, itemBottomY, artImgs[e.id])
+            ctx.fillStyle = '#2a1a0a'; ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'center'
+            const short = e.label.length > 12 ? e.label.slice(0, 11) + '\u2026' : e.label
+            ctx.fillText(short, e.cx, itemBottomY - FRAME_H - 8)
+          }
+          if (e.id === nearId) {
+            const itemH   = e.type === 'art' ? FRAME_H : ICON_SIZE
+            const itemTopY = itemBottomY - itemH
+            drawInteractPrompt(ctx, e.cx, itemTopY - 20, state.time)
+          }
         }
       }
 
-      const nearEntity = entities.find(e => e.id === state.nearEntityId)
-      renderAll(ctx, state, platforms, entities, artImgs, groundY, nearEntity, logicalW, logicalH)
+      drawSkater(ctx, state.player, state.animFrame, spriteSheet, camX)
+
+      // Walk-target indicator
+      if (state.player.walkTarget !== null) {
+        const tx = state.player.walkTarget - camX, ty = groundY - 6
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2; ctx.lineCap = 'round'
+        ctx.beginPath(); ctx.moveTo(tx-5, ty-5); ctx.lineTo(tx+5, ty+5); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(tx+5, ty-5); ctx.lineTo(tx-5, ty+5); ctx.stroke()
+        ctx.lineCap = 'butt'; ctx.globalAlpha = 1
+      }
+
+      if (roomRef.current === 'skatepark') {
+        drawScoreHUD(ctx, state, logicalW)
+        drawTrickMsg(ctx, state, logicalW, logicalH)
+      }
+
       animRef.current = requestAnimationFrame(loop)
     }
 
@@ -778,15 +891,11 @@ export default function GameCanvas({ onOpenModal, onOpenMiniGame, onZoneChange, 
       cancelAnimationFrame(animRef.current)
       document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('keyup',   onKeyUp)
-      canvas.removeEventListener('click', onCanvasClick)
-      window.removeEventListener('resize', resize)
+      canvas.removeEventListener('click',     onCanvasClick)
+      canvas.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('resize',    resize)
     }
   }, [])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ display: 'block', cursor: 'crosshair' }}
-    />
-  )
+  return <canvas ref={canvasRef} style={{ display: 'block', cursor: 'crosshair' }} />
 }
