@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output (keep dist tracked for deployment)
+# dist/
+
+# Vite cache
+.vite/
+
+# Claude settings
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
