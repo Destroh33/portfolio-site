@@ -44,7 +44,7 @@ export const PROJECTS = [
   },
   {
     id: 'oitc',
-    name: 'One in Chamber',
+    name: 'One in the Chamber',
     icon: 'gun',
     description: 'A gun-based puzzle game made for Studio Jam 2025.',
     status: 'complete',

@@ -26,7 +26,8 @@ const PED_W_IMG  = 90    // pedestal image display width
 const ICON_SIZE  = 64    // 8×8 at PS=8
 const FRAME_W    = 110   // art thumbnail frame total width (incl border)
 const FRAME_H    = 86    // art thumbnail frame total height
-const ITEM_GAP   = 4    // gap between pedestal top and item bottom
+const ITEM_GAP   = 3    // px gap between pedestal top and item bottom at rest
+const BOB_AMP    = 3    // bob amplitude (BOB_AMP ≤ ITEM_GAP ensures no pedestal overlap)
 
 // ─── Room config ───────────────────────────────────────────────────────────
 const ROOM_DOORS = {
@@ -151,7 +152,7 @@ function drawDoor(ctx, side, groundY, lW, targetRoom, overrideX) {
   ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
   ctx.strokeRect(doorX + 0.5, doorY - 6 + 0.5, DW - 1, DH + 5)
   const roomName = targetRoom === 'skatepark' ? 'SKATE' : targetRoom.toUpperCase()
-  const label = (side === 'left' ? '\u2190 ' : '') + roomName + (side === 'right' ? ' \u2192' : '')
+  const label = (side === 'left' ? '< ' : '') + roomName + (side === 'right' ? ' >' : '')
   ctx.fillStyle = '#2a1a0a'
   ctx.font = '5px "Press Start 2P", monospace'
   ctx.textAlign = 'center'
@@ -183,40 +184,41 @@ function drawPedestal(ctx, cx, groundY, pedestalImg) {
 }
 
 
-// ─── Draw: art thumbnail (chunky pixel-art frame, 3px/art-pixel) ──────────
-function drawArtThumb(ctx, cx, bottomY, artImg) {
-  const PX = 3   // 1 art-pixel = 3 screen-pixels
-  const B  = 12  // frame border = 4 art-pixels
-  const fx = cx - FRAME_W / 2, fy = bottomY - FRAME_H
-  const IW = FRAME_W - B * 2, IH = FRAME_H - B * 2
+// ─── Draw: art thumbnail (chunky pixel-art frame) ─────────────────────────
+function drawArtThumb(ctx, cx, bottomY, artImg, fw = FRAME_W, fh = FRAME_H) {
+  const sc = fw / FRAME_W                     // scale relative to reference size
+  const PX = Math.max(1, Math.round(3 * sc))  // pixel unit scales with frame
+  const B  = Math.max(4, Math.round(12 * sc)) // border thickness scales with frame
+  const fx = cx - fw / 2, fy = bottomY - fh
+  const IW = fw - B * 2, IH = fh - B * 2
   const ix = fx + B, iy = fy + B
 
-  // Outer black border (1 art-px)
+  // Outer black border
   ctx.fillStyle = '#2a1a0a'
-  ctx.fillRect(fx, fy, FRAME_W, FRAME_H)
+  ctx.fillRect(fx, fy, fw, fh)
 
   // Frame body (dark brown)
   ctx.fillStyle = '#5a3820'
-  ctx.fillRect(fx + PX, fy + PX, FRAME_W - PX * 2, FRAME_H - PX * 2)
+  ctx.fillRect(fx + PX, fy + PX, fw - PX * 2, fh - PX * 2)
 
-  // Top + left highlight (1 art-px strip)
+  // Top + left highlight
   ctx.fillStyle = '#9a6848'
-  ctx.fillRect(fx + PX, fy + PX, FRAME_W - PX * 2, PX)  // top
-  ctx.fillRect(fx + PX, fy + PX, PX, FRAME_H - PX * 2)  // left
+  ctx.fillRect(fx + PX, fy + PX, fw - PX * 2, PX)
+  ctx.fillRect(fx + PX, fy + PX, PX, fh - PX * 2)
 
-  // Bottom + right shadow (1 art-px strip)
+  // Bottom + right shadow
   ctx.fillStyle = '#2e1408'
-  ctx.fillRect(fx + PX, fy + FRAME_H - PX * 2, FRAME_W - PX * 2, PX)  // bottom
-  ctx.fillRect(fx + FRAME_W - PX * 2, fy + PX, PX, FRAME_H - PX * 2)  // right
+  ctx.fillRect(fx + PX, fy + fh - PX * 2, fw - PX * 2, PX)
+  ctx.fillRect(fx + fw - PX * 2, fy + PX, PX, fh - PX * 2)
 
-  // Inner black inset line (1 art-px, at edge of image area)
+  // Inner black inset line
   ctx.fillStyle = '#2a1a0a'
-  ctx.fillRect(ix - PX, iy - PX, IW + PX * 2, PX)  // top inner
-  ctx.fillRect(ix - PX, iy,      PX, IH)             // left inner
-  ctx.fillRect(ix - PX, iy + IH, IW + PX * 2, PX)   // bottom inner
-  ctx.fillRect(ix + IW, iy - PX, PX, IH + PX)        // right inner
+  ctx.fillRect(ix - PX, iy - PX, IW + PX * 2, PX)
+  ctx.fillRect(ix - PX, iy,      PX, IH)
+  ctx.fillRect(ix - PX, iy + IH, IW + PX * 2, PX)
+  ctx.fillRect(ix + IW, iy - PX, PX, IH + PX)
 
-  // Image mat (off-white)
+  // Image mat
   ctx.fillStyle = '#f5f0e8'
   ctx.fillRect(ix, iy, IW, IH)
 
@@ -261,105 +263,163 @@ function drawPlatform(ctx, plat, camX, cW, groundY) {
   ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.strokeRect(x+.5, plat.y+.5, plat.w-1, plat.h-1)
 }
 
+// ─── Virtual touch buttons ─────────────────────────────────────────────────
+function getVBtns(lW, lH) {
+  const bs = Math.max(52, Math.min(72, lW * 0.13))
+  const m = 16, g = 8
+  return [
+    { id: 'left',     x: m,                  y: lH - bs - m, w: bs, h: bs, label: '<', key: 'ArrowLeft'  },
+    { id: 'right',    x: m + bs + g,         y: lH - bs - m, w: bs, h: bs, label: '>', key: 'ArrowRight' },
+    { id: 'jump',     x: lW - m - bs,        y: lH - bs - m, w: bs, h: bs, label: '^', key: 'Space'      },
+    { id: 'interact', x: lW - m - bs * 2 - g,y: lH - bs - m, w: bs, h: bs, label: 'E', key: 'KeyE'       },
+  ]
+}
+
+function drawTouchControls(ctx, lW, lH, pressedKeys) {
+  const btns = getVBtns(lW, lH)
+  for (const b of btns) {
+    const active = b.key !== 'KeyE' && pressedKeys.has(b.key)
+    ctx.globalAlpha = active ? 0.9 : 0.6
+    ctx.fillStyle   = active ? 'rgba(80,60,30,0.8)' : 'rgba(42,26,10,0.55)'
+    ctx.fillRect(b.x, b.y, b.w, b.h)
+    ctx.strokeStyle = 'rgba(253,250,244,0.8)'; ctx.lineWidth = 2
+    ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2)
+    ctx.fillStyle = '#fdfaf4'
+    ctx.font = `${Math.round(b.w * 0.36)}px "Press Start 2P", monospace`
+    ctx.textAlign = 'center'
+    ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + Math.round(b.w * 0.13))
+  }
+  ctx.globalAlpha = 1
+}
+
 // ─── Draw: home content (drawn on canvas before player) ───────────────────
-function drawHomeContent(ctx, lW, lH, groundY, portrait, linkRectsOut) {
+function drawHomeContent(ctx, lW, groundY, portrait, linkRectsOut, uiScale, isTouch) {
   const NAV_H    = 44
   const panelTop = NAV_H + 12
   const panelBot = groundY - 12
   const panelH   = panelBot - panelTop
   const contentCY = (panelTop + panelBot) / 2
-  const textX     = 60
-  const textMaxW  = lW * 0.52 - 80
+  const isMobile  = lW < 650
+  const f = (base, min) => Math.max(min, Math.round(base * uiScale))
 
-  // Semi-transparent paper panel (full height between nav and ground)
+  // Paper panel
   ctx.fillStyle = 'rgba(253,250,244,0.82)'
-  ctx.fillRect(32, panelTop, lW * 0.88, panelH)
+  ctx.fillRect(32, panelTop, lW - 64, panelH)
   ctx.strokeStyle = 'rgba(42,26,10,0.2)'; ctx.lineWidth = 1.5
-  ctx.strokeRect(32.5, panelTop + 0.5, lW * 0.88 - 1, panelH - 1)
+  ctx.strokeRect(32.5, panelTop + 0.5, lW - 65, panelH - 1)
 
-  // Portrait (right side, aspect-ratio-correct contain mode)
-  const portSize  = Math.min(220, panelH * 0.72)
-  const portX     = lW * 0.65
-  const portFrameY = contentCY - portSize / 2
-  ctx.fillStyle = '#f0ebd8'
-  ctx.fillRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2.5
-  ctx.strokeRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
-  if (portrait && portrait.complete && portrait.naturalWidth > 0) {
-    ctx.imageSmoothingEnabled = true
-    const ia = portrait.naturalWidth / portrait.naturalHeight
-    let dw, dh, ddx = 0, ddy = 0
-    if (ia > 1) { dw = portSize; dh = portSize / ia; ddy = (portSize - dh) / 2 }
-    else        { dh = portSize; dw = portSize * ia; ddx = (portSize - dw) / 2 }
-    ctx.drawImage(portrait, portX + ddx, portFrameY + ddy, dw, dh)
-    ctx.imageSmoothingEnabled = false
+  // Portrait (desktop only — hidden on narrow screens to save space)
+  if (!isMobile) {
+    const portSize   = Math.min(Math.round(220 * uiScale), panelH * 0.72)
+    const portX      = lW * 0.65
+    const portFrameY = contentCY - portSize / 2
+    ctx.fillStyle = '#f0ebd8'
+    ctx.fillRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
+    ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2.5
+    ctx.strokeRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
+    if (portrait && portrait.complete && portrait.naturalWidth > 0) {
+      ctx.imageSmoothingEnabled = true
+      const ia = portrait.naturalWidth / portrait.naturalHeight
+      let dw, dh, ddx = 0, ddy = 0
+      if (ia > 1) { dw = portSize; dh = portSize / ia; ddy = (portSize - dh) / 2 }
+      else        { dh = portSize; dw = portSize * ia; ddx = (portSize - dw) / 2 }
+      ctx.drawImage(portrait, portX + ddx, portFrameY + ddy, dw, dh)
+      ctx.imageSmoothingEnabled = false
+    }
   }
 
-  // Left text block — vertically centered around contentCY
-  let ty = contentCY - 100
+  // Text layout
+  const textX    = isMobile ? 24 : 60
+  const textMaxW = isMobile ? (lW - 48) : (lW * 0.52 - 80)
+  const step = s => Math.round(s * uiScale)
+
+  let ty = contentCY - step(isMobile ? 120 : 100)
   ctx.textAlign = 'left'
 
   ctx.fillStyle = '#9a8a7a'
-  ctx.font = '9px "Press Start 2P", monospace'
-  ctx.fillText("HI, I'M", textX, ty); ty += 30
+  ctx.font = `${f(9, 6)}px "Press Start 2P", monospace`
+  ctx.fillText("HI, I'M", textX, ty); ty += step(28)
 
   ctx.fillStyle = '#2a1a0a'
-  ctx.font = '22px "Press Start 2P", monospace'
-  ctx.fillText('KRISHNA THOLUDUR', textX, ty); ty += 30
+  if (isMobile) {
+    const ns = Math.max(12, Math.round(lW * 0.034))
+    ctx.font = `${ns}px "Press Start 2P", monospace`
+    ctx.fillText('KRISHNA', textX, ty);  ty += Math.round(ns * 1.6)
+    ctx.fillText('THOLUDUR', textX, ty); ty += Math.round(ns * 1.3)
+  } else {
+    ctx.font = `${f(22, 10)}px "Press Start 2P", monospace`
+    ctx.fillText('KRISHNA THOLUDUR', textX, ty); ty += step(30)
+  }
 
   ctx.fillStyle = '#5a2d8a'
-  ctx.font = '10px "Press Start 2P", monospace'
-  ctx.fillText('CS @ UCLA  \u00b7  SOFTWARE ENGINEER AND GAME DEVELOPER', textX, ty); ty += 28
+  ctx.font = `${f(10, 6)}px "Press Start 2P", monospace`
+  if (isMobile) {
+    ctx.fillText('CS @ UCLA', textX, ty);         ty += step(18)
+    ctx.fillText('SWE + GAME DEV', textX, ty);    ty += step(24)
+  } else {
+    ctx.fillText('CS @ UCLA  \u00b7  SOFTWARE ENGINEER AND GAME DEVELOPER', textX, ty)
+    ty += step(28)
+  }
 
   ctx.fillStyle = '#3a2a1a'
-  ctx.font = '8px "Press Start 2P", monospace'
-  ty = wrapText(ctx, "I'm a CS student at UCLA who likes to make games and other weird interactive software. Currently working on Prime Weaver and Rebel Stars.", textX, ty, textMaxW, 20)
-  ty += 24
+  ctx.font = `${f(8, 6)}px "Press Start 2P", monospace`
+  ty = wrapText(ctx,
+    "I'm a CS student at UCLA who likes to make games and other weird interactive software. Currently working on Prime Weaver and Rebel Stars.",
+    textX, ty, textMaxW, step(20))
+  ty += step(22)
 
   // Link buttons
   linkRectsOut.length = 0
-  ctx.font = '7px "Press Start 2P", monospace'
-  const btnH = 26
+  const btnFontSz = f(7, 5)
+  ctx.font = `${btnFontSz}px "Press Start 2P", monospace`
+  const btnH   = Math.round(26 * uiScale)
+  const maxBtnX = isMobile ? lW - 40 : lW * 0.57
   let bx = textX, btnRowY = ty
   for (const link of HOME_LINKS) {
     const tw = ctx.measureText(link.label).width
-    const bw = tw + 28
-    if (bx + bw > lW * 0.57 && bx > textX) { bx = textX; btnRowY += btnH + 8 }
-    const by = btnRowY - 18
+    const bw = tw + Math.round(28 * uiScale)
+    if (bx + bw > maxBtnX && bx > textX) { bx = textX; btnRowY += btnH + 6 }
+    const by = btnRowY
     ctx.fillStyle = 'rgba(253,250,244,0.95)'
     ctx.fillRect(bx, by, bw, btnH)
     ctx.strokeStyle = link.color; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, btnH)
-    ctx.fillStyle = link.color; ctx.fillText(link.label, bx + 14, by + 17)
+    ctx.fillStyle = link.color; ctx.fillText(link.label, bx + Math.round(10 * uiScale), by + Math.round(btnH * 0.70))
     linkRectsOut.push({ x: bx, y: by, w: bw, h: btnH, url: link.url })
-    bx += bw + 8
+    bx += bw + 6
   }
 
-  // Controls hint — pixel key boxes below buttons
-  const kbTop = btnRowY + btnH + 18
-  function drawKey(kx, ky, label, kw) {
-    ctx.font = '5px "Press Start 2P", monospace'
-    const w = kw !== undefined ? kw : Math.max(18, ctx.measureText(label).width + 12)
-    ctx.fillStyle = '#e8e0d0'
-    ctx.fillRect(kx, ky, w, 18)
-    ctx.fillStyle = '#9a9088'
-    ctx.fillRect(kx + 1, ky + 16, w - 2, 2)
-    ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1
-    ctx.strokeRect(kx + 0.5, ky + 0.5, w - 1, 17)
-    ctx.fillStyle = '#2a1a0a'
-    ctx.textAlign = 'center'
-    ctx.fillText(label, kx + w / 2, ky + 12)
+  // Controls hint
+  if (isTouch || isMobile) {
+    ctx.fillStyle = '#7a6a5a'
+    ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
+    ctx.textAlign = 'left'
+    ctx.fillText('USE BUTTONS TO MOVE + JUMP', textX, btnRowY + btnH + 18)
+  } else {
+    // WASD pixel key boxes
+    const kbTop = btnRowY + btnH + 18
+    const ks = Math.max(14, step(20))
+    const kh = Math.max(12, step(18))
+    function drawKey(kx, ky, label, kw) {
+      ctx.font = `${f(5, 4)}px "Press Start 2P", monospace`
+      const w = kw !== undefined ? kw : Math.max(ks, ctx.measureText(label).width + 10)
+      ctx.fillStyle = '#e8e0d0'; ctx.fillRect(kx, ky, w, kh)
+      ctx.fillStyle = '#9a9088'; ctx.fillRect(kx + 1, ky + kh - 2, w - 2, 2)
+      ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1
+      ctx.strokeRect(kx + 0.5, ky + 0.5, w - 1, kh - 1)
+      ctx.fillStyle = '#2a1a0a'; ctx.textAlign = 'center'
+      ctx.fillText(label, kx + w / 2, ky + kh - 4)
+    }
+    drawKey(textX + ks,      kbTop,      'W')
+    drawKey(textX,           kbTop + ks, 'A')
+    drawKey(textX + ks,      kbTop + ks, 'S')
+    drawKey(textX + ks * 2,  kbTop + ks, 'D')
+    drawKey(textX + ks * 4,  kbTop + ks, 'SPC', Math.round(44 * uiScale))
+    ctx.fillStyle = '#7a6a5a'
+    ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
+    ctx.textAlign = 'left'
+    ctx.fillText('MOVE', textX + 3,        kbTop + ks * 2 + 14)
+    ctx.fillText('JUMP', textX + ks * 4 + 3, kbTop + ks * 2 + 14)
   }
-  const KS = 20
-  drawKey(textX + KS,      kbTop,      'W')
-  drawKey(textX,           kbTop + KS, 'A')
-  drawKey(textX + KS,      kbTop + KS, 'S')
-  drawKey(textX + KS * 2,  kbTop + KS, 'D')
-  drawKey(textX + KS * 4,  kbTop + KS, 'SPC', 44)
-  ctx.fillStyle = '#7a6a5a'
-  ctx.font = '6px "Press Start 2P", monospace'
-  ctx.textAlign = 'left'
-  ctx.fillText('MOVE', textX + 3, kbTop + KS * 2 + 14)
-  ctx.fillText('JUMP', textX + KS * 4 + 3, kbTop + KS * 2 + 14)
 }
 
 // ─── Draw: interact prompt ────────────────────────────────────────────────
@@ -592,7 +652,10 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
 
     let logicalW = 0, logicalH = 0, groundY = 0
     let entities = [], platforms = [], skateparkWorldW = 0
+    let uiScale = 1
+    let isTouchDevice = false
     const homeLinkRects = []
+    const touchMap = new Map()   // touchId → btn.id
 
     function rebuildRoom() {
       groundY = logicalH - 80
@@ -613,6 +676,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
       canvas.style.width  = logicalW + 'px'
       canvas.style.height = logicalH + 'px'
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      uiScale = Math.max(0.35, Math.min(1.0, Math.min(logicalW / 1440, logicalH / 810)))
       rebuildRoom()
       if (stateRef.current) {
         const gY = logicalH - 80
@@ -698,10 +762,80 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
       canvas.style.cursor = homeLinkRects.some(r => x >= r.x && x <= r.x+r.w && y >= r.y && y <= r.y+r.h) ? 'pointer' : 'crosshair'
     }
 
+    // ── Touch control handlers ────────────────────────────────────────────
+    function logicalTouch(t) {
+      const rect = canvas.getBoundingClientRect()
+      return {
+        cx: (t.clientX - rect.left) * (logicalW / rect.width),
+        cy: (t.clientY - rect.top)  * (logicalH / rect.height),
+      }
+    }
+
+    function onTouchStart(e) {
+      e.preventDefault()
+      isTouchDevice = true
+      for (const t of e.changedTouches) {
+        const { cx, cy } = logicalTouch(t)
+        const btn = getVBtns(logicalW, logicalH).find(
+          b => cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h
+        )
+        if (btn) {
+          touchMap.set(t.identifier, btn.id)
+          if (btn.id === 'interact') {
+            const near = entities.find(en => en.id === stateRef.current.nearEntityId)
+            if (near) handleInteract(near)
+          } else {
+            stateRef.current.keys.add(btn.key)
+          }
+        } else if (!pausedRef.current) {
+          stateRef.current.player.walkTarget = cx
+        }
+      }
+    }
+
+    function onTouchMove(e) {
+      e.preventDefault()
+      const btns = getVBtns(logicalW, logicalH)
+      for (const t of e.changedTouches) {
+        const { cx, cy } = logicalTouch(t)
+        const btn = btns.find(b => cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h)
+        const prevId = touchMap.get(t.identifier)
+        if (prevId !== btn?.id) {
+          if (prevId) {
+            const prev = btns.find(b => b.id === prevId)
+            if (prev && prev.id !== 'interact') stateRef.current.keys.delete(prev.key)
+          }
+          if (btn && btn.id !== 'interact') {
+            touchMap.set(t.identifier, btn.id)
+            stateRef.current.keys.add(btn.key)
+          } else {
+            touchMap.delete(t.identifier)
+          }
+        }
+      }
+    }
+
+    function onTouchEnd(e) {
+      e.preventDefault()
+      const btns = getVBtns(logicalW, logicalH)
+      for (const t of e.changedTouches) {
+        const btnId = touchMap.get(t.identifier)
+        if (btnId) {
+          const btn = btns.find(b => b.id === btnId)
+          if (btn && btn.id !== 'interact') stateRef.current.keys.delete(btn.key)
+          touchMap.delete(t.identifier)
+        }
+      }
+    }
+
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('keyup',   onKeyUp)
     canvas.addEventListener('click',     onCanvasClick)
     canvas.addEventListener('mousemove', onMouseMove)
+    canvas.addEventListener('touchstart',  onTouchStart,  { passive: false })
+    canvas.addEventListener('touchmove',   onTouchMove,   { passive: false })
+    canvas.addEventListener('touchend',    onTouchEnd,    { passive: false })
+    canvas.addEventListener('touchcancel', onTouchEnd,    { passive: false })
     window.addEventListener('resize',    resize, { passive: true })
 
     let lastTime = performance.now()
@@ -817,7 +951,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
 
       // Home room content (rendered before player so player goes in front)
       if (roomRef.current === 'home') {
-        drawHomeContent(ctx, logicalW, logicalH, groundY, artImgs['portrait'], homeLinkRects)
+        drawHomeContent(ctx, logicalW, groundY, artImgs['portrait'], homeLinkRects, uiScale, isTouchDevice)
       }
 
       const doors = ROOM_DOORS[roomRef.current] || {}
@@ -838,32 +972,56 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
         if (doors.right) drawDoor(ctx, 'right', groundY, logicalW, doors.right)
       }
 
+      // Room title (projects / art)
+      const ROOM_TITLES = { projects: 'PROJECTS GALLERY', art: 'ART GALLERY' }
+      const roomTitle = ROOM_TITLES[roomRef.current]
+      if (roomTitle) {
+        ctx.font = '14px "Press Start 2P", monospace'
+        ctx.textAlign = 'center'
+        ctx.fillStyle = 'rgba(253,250,244,0.7)'
+        ctx.fillText(roomTitle, logicalW / 2, 80)
+        ctx.fillStyle = '#2a1a0a'
+        ctx.fillText(roomTitle, logicalW / 2, 78)
+      }
+
       // Project / art entities
+      // pedestalTopY: drawPedestal receives (groundY-3) and offsets by +5 internally
+      // so actual pedestal image top = (groundY-3) - PED_H_IMG + 5 = groundY - 88
+      const pedestalTopY = groundY - 3 - PED_H_IMG + 5
+      const baseBottomY  = pedestalTopY - ITEM_GAP
       if (entities.length > 0) {
-        const itemBottomY = groundY - PED_H_IMG - ITEM_GAP
+        // Scale items so they never overlap regardless of viewport width
+        const spacing   = logicalW / (entities.length + 1)
+        const maxRef    = Math.max(ICON_SIZE, FRAME_W)
+        const itemScale = Math.min(uiScale, (spacing * 0.82) / maxRef)
+        const effIS = Math.round(ICON_SIZE * itemScale)   // effective icon size
+        const effFW = Math.round(FRAME_W   * itemScale)   // effective frame width
+        const effFH = Math.round(FRAME_H   * itemScale)   // effective frame height
+        const lblSz = Math.max(5, Math.round(6 * itemScale))
+
         const nearId = state.nearEntityId
-        for (const e of entities) {
+        entities.forEach((e, i) => {
+          const bob = Math.sin(state.time * 1.8 + i * 1.1) * BOB_AMP
+          const drawBottomY = baseBottomY + bob
           drawPedestal(ctx, e.cx, groundY-3, pedestalImg)
           if (e.type === 'project') {
             const iImg = iconImgs[e.icon]
             ctx.imageSmoothingEnabled = false
             if (iImg && iImg.complete && iImg.naturalWidth > 0)
-              ctx.drawImage(iImg, e.cx - ICON_SIZE / 2, itemBottomY - ICON_SIZE, ICON_SIZE, ICON_SIZE)
-            ctx.fillStyle = '#2a1a0a'; ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'center'
-            const short = e.label.length > 12 ? e.label.slice(0, 11) + '\u2026' : e.label
-            ctx.fillText(short, e.cx, itemBottomY - ICON_SIZE - 8)
+              ctx.drawImage(iImg, e.cx - effIS / 2, drawBottomY - effIS, effIS, effIS)
+            ctx.fillStyle = '#2a1a0a'; ctx.font = `${lblSz}px "Press Start 2P", monospace`; ctx.textAlign = 'center'
+            ctx.fillText(e.label, e.cx, drawBottomY - effIS - 6)
           } else if (e.type === 'art') {
-            drawArtThumb(ctx, e.cx, itemBottomY, artImgs[e.id])
-            ctx.fillStyle = '#2a1a0a'; ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'center'
-            const short = e.label.length > 12 ? e.label.slice(0, 11) + '\u2026' : e.label
-            ctx.fillText(short, e.cx, itemBottomY - FRAME_H - 8)
+            drawArtThumb(ctx, e.cx, drawBottomY, artImgs[e.id], effFW, effFH)
+            ctx.fillStyle = '#2a1a0a'; ctx.font = `${lblSz}px "Press Start 2P", monospace`; ctx.textAlign = 'center'
+            ctx.fillText(e.label, e.cx, drawBottomY - effFH - 6)
           }
           if (e.id === nearId) {
-            const itemH   = e.type === 'art' ? FRAME_H : ICON_SIZE
-            const itemTopY = itemBottomY - itemH
+            const itemH    = e.type === 'art' ? effFH : effIS
+            const itemTopY = drawBottomY - itemH
             drawInteractPrompt(ctx, e.cx, itemTopY - 20, state.time)
           }
-        }
+        })
       }
 
       drawSkater(ctx, state.player, state.animFrame, spriteSheet, camX)
@@ -882,6 +1040,11 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
         drawTrickMsg(ctx, state, logicalW, logicalH)
       }
 
+      // Virtual touch controls (shown on touch devices or narrow screens)
+      if (isTouchDevice || logicalW < 650) {
+        drawTouchControls(ctx, logicalW, logicalH, state.keys)
+      }
+
       animRef.current = requestAnimationFrame(loop)
     }
 
@@ -893,6 +1056,10 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
       document.removeEventListener('keyup',   onKeyUp)
       canvas.removeEventListener('click',     onCanvasClick)
       canvas.removeEventListener('mousemove', onMouseMove)
+      canvas.removeEventListener('touchstart',  onTouchStart)
+      canvas.removeEventListener('touchmove',   onTouchMove)
+      canvas.removeEventListener('touchend',    onTouchEnd)
+      canvas.removeEventListener('touchcancel', onTouchEnd)
       window.removeEventListener('resize',    resize)
     }
   }, [])
