@@ -311,8 +311,8 @@ function drawTouchControls(ctx, lW, lH, pressedKeys) {
 }
 
 // ─── Draw: home content (drawn on canvas before player) ───────────────────
-function drawHomeContent(ctx, lW, groundY, portrait, skillImgs, linkRectsOut, uiScale, isTouch) {
-  const NAV_H    = 44
+function drawHomeContent(ctx, lW, groundY, portrait, skillImgs, linkRectsOut, uiScale, isTouch, gameScale) {
+  const NAV_H    = Math.round(44 / gameScale)
   const panelTop = NAV_H + 12
   const panelBot = groundY - 12
   const contentCY = (panelTop + panelBot) / 2
@@ -740,7 +740,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
 
     let logicalW = 0, logicalH = 0, groundY = 0
     let entities = [], platforms = [], skateparkWorldW = 0
-    let uiScale = 1
+    let uiScale = 1, gameScale = 1
     let isTouchDevice = false
     const homeLinkRects = []
     const touchMap = new Map()   // touchId → btn.id
@@ -757,13 +757,15 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
     }
 
     function resize() {
-      const dpr = Math.round(window.devicePixelRatio || 1)
-      logicalW = window.innerWidth; logicalH = window.innerHeight
-      canvas.width        = logicalW * dpr
-      canvas.height       = logicalH * dpr
-      canvas.style.width  = logicalW + 'px'
-      canvas.style.height = logicalH + 'px'
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const dpr  = Math.round(window.devicePixelRatio || 1)
+      gameScale  = window.innerWidth / 1280
+      logicalW   = 1280
+      logicalH   = Math.round(window.innerHeight / gameScale)
+      canvas.width        = Math.round(window.innerWidth  * dpr)
+      canvas.height       = Math.round(window.innerHeight * dpr)
+      canvas.style.width  = window.innerWidth  + 'px'
+      canvas.style.height = window.innerHeight + 'px'
+      ctx.setTransform(dpr * gameScale, 0, 0, dpr * gameScale, 0, 0)
       uiScale = Math.max(0.35, Math.min(1.0, Math.min(logicalW / 1440, logicalH / 810)))
       rebuildRoom()
       if (stateRef.current) {
@@ -1039,7 +1041,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
 
       // Home room content (rendered before player so player goes in front)
       if (roomRef.current === 'home') {
-        drawHomeContent(ctx, logicalW, groundY, artImgs['portrait'], skillImgsArr, homeLinkRects, uiScale, isTouchDevice)
+        drawHomeContent(ctx, logicalW, groundY, artImgs['portrait'], skillImgsArr, homeLinkRects, uiScale, isTouchDevice, gameScale)
       }
 
       const doors = ROOM_DOORS[roomRef.current] || {}
