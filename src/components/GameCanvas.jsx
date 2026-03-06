@@ -312,7 +312,7 @@ function drawTouchControls(ctx, lW, lH, pressedKeys) {
 
 // ─── Draw: home content (drawn on canvas before player) ───────────────────
 function drawHomeContent(ctx, lW, groundY, portrait, skillImgs, linkRectsOut, uiScale, isTouch, gameScale) {
-  const NAV_H    = Math.round(44 / gameScale)
+  const NAV_H    = Math.round(72 / gameScale)
   const panelTop = NAV_H + 12
   const panelBot = groundY - 12
   const contentCY = (panelTop + panelBot) / 2
@@ -533,8 +533,6 @@ function drawSkater(ctx, player, animFrame, spriteSheet, camX) {
     ctx.drawImage(spriteSheet, frame * SRC_W, 0, SRC_W, SRC_H, -DST_W/2, -DST_H, DST_W, DST_H)
   }
   ctx.restore()
-  ctx.fillStyle = 'rgba(42,26,10,0.12)'
-  ctx.beginPath(); ctx.ellipse(sx, by+1, 14, 4, 0, 0, Math.PI*2); ctx.fill()
 }
 
 // ─── Draw: score HUD ──────────────────────────────────────────────────────
