@@ -127,7 +127,7 @@ export default function InfoModal({ data, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel rpg-box" onClick={e => e.stopPropagation()}>
         <div className="modal-top-bar">
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="modal-close pixel-font" onClick={onClose} aria-label="Close">X</button>
         </div>
         <div className="modal-body">
           {type === 'stat'  && <StatContent  data={entity.data} />}

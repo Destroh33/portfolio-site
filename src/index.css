@@ -39,7 +39,7 @@ html, body, #root {
   height: 72px;
   z-index: 100;
   background: #fdfaf4;
-  border-bottom: 2px solid #2a1a0a;
+  border-bottom: 3px solid #2a1a0a;
   display: flex;
   align-items: center;
   padding: 0 32px;
@@ -75,9 +75,9 @@ html, body, #root {
 
 /* ─── SKETCH BOX ─────────────────────────────────────────── */
 .rpg-box {
-  border: 2.5px solid #2a1a0a;
+  border: 4px solid #2a1a0a;
   box-shadow:
-    4px 4px 0 rgba(42,26,10,0.18),
+    6px 6px 0 rgba(42,26,10,0.25),
     0 16px 40px rgba(42,26,10,0.15);
 }
 
@@ -124,9 +124,9 @@ html, body, #root {
 
 .modal-close {
   background: transparent;
-  border: 1.5px solid #9a8c7a;
-  color: #7a6a5a;
-  font-size: 20px;
+  border: 3px solid #2a1a0a;
+  color: #2a1a0a;
+  font-size: 14px;
   width: 42px;
   height: 42px;
   cursor: pointer;
@@ -136,7 +136,7 @@ html, body, #root {
   transition: border-color 0.15s, color 0.15s;
   flex-shrink: 0;
 }
-.modal-close:hover { border-color: #2a1a0a; color: #2a1a0a; }
+.modal-close:hover { background: rgba(42,26,10,0.08); }
 
 .pixel-font {
   font-family: 'Press Start 2P', monospace;
@@ -150,15 +150,15 @@ html, body, #root {
   gap: 1.25rem;
   align-items: flex-start;
   padding-bottom: 1rem;
-  border-bottom: 1.5px solid #c4a87a;
+  border-bottom: 3px solid #c4a87a;
 }
 
 .stat-portrait {
   width: 100px;
   height: 100px;
   object-fit: contain;
-  border: 2px solid #2a1a0a;
-  box-shadow: 3px 3px 0 rgba(42,26,10,0.15);
+  border: 3px solid #2a1a0a;
+  box-shadow: 4px 4px 0 rgba(42,26,10,0.2);
   flex-shrink: 0;
   background: #f0ebd8;
 }
@@ -211,7 +211,7 @@ html, body, #root {
   flex: 1;
   height: 10px;
   background: #e8e0d0;
-  border: 1px solid #9a8c7a;
+  border: 2px solid #9a8c7a;
   overflow: hidden;
 }
 
@@ -242,7 +242,7 @@ html, body, #root {
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 0.5rem;
-  border-top: 1.5px solid #c4a87a;
+  border-top: 3px solid #c4a87a;
 }
 
 /* ─── QUEST SHEET ─────────────────────────────────────────── */
@@ -253,7 +253,7 @@ html, body, #root {
   font-family: 'Press Start 2P', monospace;
   font-size: 10px;
   padding: 4px 10px;
-  border: 1.5px solid;
+  border: 3px solid;
   margin-bottom: 6px;
 }
 .quest-status-badge.active { color: #c8880a; border-color: #c8880a; background: rgba(200,136,10,0.08); }
@@ -306,7 +306,7 @@ html, body, #root {
   position: relative;
   padding-bottom: 56.25%;
   height: 0;
-  border: 2px solid #c4a87a;
+  border: 3px solid #c4a87a;
   background: #e8e0d0;
   overflow: hidden;
 }
@@ -319,7 +319,7 @@ html, body, #root {
 
 /* Image display (natural aspect ratio) */
 .quest-media--image {
-  border: 2px solid #c4a87a;
+  border: 3px solid #c4a87a;
   background: #e8e0d0;
   overflow: hidden;
   display: flex;
@@ -338,15 +338,15 @@ html, body, #root {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 0.5rem;
-  border-top: 1.5px solid #c4a87a;
+  border-top: 3px solid #c4a87a;
 }
 
 /* ─── ART SHEET ──────────────────────────────────────────── */
 .art-sheet { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
 
 .art-image-wrap {
-  border: 2.5px solid #2a1a0a;
-  box-shadow: 4px 4px 0 rgba(42,26,10,0.15);
+  border: 4px solid #2a1a0a;
+  box-shadow: 6px 6px 0 rgba(42,26,10,0.2);
   max-width: 100%;
   overflow: hidden;
   background: #f0ebd8;
@@ -370,7 +370,7 @@ html, body, #root {
   font-size: 7px;
   padding: 8px 14px;
   background: transparent;
-  border: 2px solid #2a1a0a;
+  border: 3px solid #2a1a0a;
   color: #2a1a0a;
   text-decoration: none;
   cursor: pointer;
