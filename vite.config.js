@@ -5,4 +5,5 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
   base: '/portfolio-site/',
+  build: { outDir: 'docs' },
 })
