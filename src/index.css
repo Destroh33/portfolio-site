@@ -8,6 +8,30 @@ html, body, #root {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* ─── ROTATE OVERLAY (portrait phones) ────────────────────── */
+.rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #fdfaf4;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  padding: 32px;
+  font-family: 'Press Start 2P', monospace;
+  color: #2a1a0a;
+}
+.rotate-icon  { font-size: 48px; }
+.rotate-overlay > div:nth-child(2) { font-size: 14px; line-height: 2; }
+.rotate-sub   { font-size: 8px; color: #7a6a5a; }
+
+@media (orientation: portrait) {
+  .rotate-overlay { display: flex; }
+}
+
 /* ─── NAV BAR ─────────────────────────────────────────────── */
 .nav-bar {
   position: fixed;

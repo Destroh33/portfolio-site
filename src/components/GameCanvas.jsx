@@ -47,6 +47,22 @@ const ICON_SRCS = {
   slime:  '/images/slime.png',
 }
 
+// ─── Skill icons (ordered by importance, 4×3 grid) ────────────────────────
+const SKILL_ICONS = [
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/unrealengine/unrealengine-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/unity/unity-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/cplusplus/cplusplus-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/csharp/csharp-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/git/git-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/blender/blender-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/java/java-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg',
+  'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg',
+]
+
 // ─── Home links ────────────────────────────────────────────────────────────
 const HOME_LINKS = [
   { label: 'GITHUB',   url: 'https://github.com/Destroh33',                                  color: '#2a1a0a' },
@@ -293,26 +309,50 @@ function drawTouchControls(ctx, lW, lH, pressedKeys) {
 }
 
 // ─── Draw: home content (drawn on canvas before player) ───────────────────
-function drawHomeContent(ctx, lW, groundY, portrait, linkRectsOut, uiScale, isTouch) {
+function drawHomeContent(ctx, lW, groundY, portrait, skillImgs, linkRectsOut, uiScale, isTouch) {
   const NAV_H    = 44
   const panelTop = NAV_H + 12
   const panelBot = groundY - 12
-  const panelH   = panelBot - panelTop
   const contentCY = (panelTop + panelBot) / 2
   const isMobile  = lW < 650
-  const f = (base, min) => Math.max(min, Math.round(base * uiScale))
+  const f    = (base, min) => Math.max(min, Math.round(base * uiScale))
+  const step = s => Math.round(s * uiScale)
 
-  // Paper panel
-  ctx.fillStyle = 'rgba(253,250,244,0.82)'
-  ctx.fillRect(32, panelTop, lW - 64, panelH)
-  ctx.strokeStyle = 'rgba(42,26,10,0.2)'; ctx.lineWidth = 1.5
-  ctx.strokeRect(32.5, panelTop + 0.5, lW - 65, panelH - 1)
 
-  // Portrait (desktop only — hidden on narrow screens to save space)
+  const innerL = 52
+  const innerR = lW - 52
+
   if (!isMobile) {
-    const portSize   = Math.min(Math.round(220 * uiScale), panelH * 0.72)
-    const portX      = lW * 0.65
-    const portFrameY = contentCY - portSize / 2
+    // ── Tech icon strip: BOTTOM of panel ─────────────────────────────────
+    const n       = skillImgs.length
+    const spacing = Math.round((innerR - innerL) / n)
+    const iconSz  = Math.min(Math.round(48 * uiScale), Math.round(spacing * 0.75))
+    const stripH  = iconSz + step(16)
+    const stripTop = panelBot - stripH - step(4)
+
+    ctx.strokeStyle = 'rgba(42,26,10,0.10)'; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(innerL, stripTop); ctx.lineTo(innerR, stripTop); ctx.stroke()
+
+    const iconY = stripTop + Math.round((stripH - iconSz) / 2)
+    skillImgs.forEach((img, idx) => {
+      const cx = innerL + Math.round(spacing * (idx + 0.5))
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = true
+        ctx.drawImage(img, cx - Math.round(iconSz / 2), iconY, iconSz, iconSz)
+        ctx.imageSmoothingEnabled = false
+      }
+    })
+
+    // ── Top section: text LEFT, portrait RIGHT — block centered in panel ──
+    const topCY    = (panelTop + stripTop) / 2
+    const portSize = Math.min(Math.round(220 * uiScale), Math.round((stripTop - panelTop) * 0.72))
+    const textMaxW = Math.round(portSize * 1.7)
+    const gapTP    = step(250)
+    const blockW   = textMaxW + gapTP + portSize
+    const blockL   = Math.round((innerL + innerR - blockW) / 2)
+    const textX    = blockL
+    const portX    = blockL + textMaxW + gapTP
+    const portFrameY = topCY - portSize / 2
     ctx.fillStyle = '#f0ebd8'
     ctx.fillRect(portX - 5, portFrameY - 5, portSize + 10, portSize + 10)
     ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 2.5
@@ -326,99 +366,141 @@ function drawHomeContent(ctx, lW, groundY, portrait, linkRectsOut, uiScale, isTo
       ctx.drawImage(portrait, portX + ddx, portFrameY + ddy, dw, dh)
       ctx.imageSmoothingEnabled = false
     }
-  }
 
-  // Text layout
-  const textX    = isMobile ? 24 : 60
-  const textMaxW = isMobile ? (lW - 48) : (lW * 0.52 - 80)
-  const step = s => Math.round(s * uiScale)
+    let ty = topCY - step(100)
+    ctx.textAlign = 'left'
 
-  let ty = contentCY - step(isMobile ? 120 : 100)
-  ctx.textAlign = 'left'
+    ctx.fillStyle = '#9a8a7a'
+    ctx.font = `${f(9, 6)}px "Press Start 2P", monospace`
+    ctx.fillText("HI, I'M", textX, ty); ty += step(28)
 
-  ctx.fillStyle = '#9a8a7a'
-  ctx.font = `${f(9, 6)}px "Press Start 2P", monospace`
-  ctx.fillText("HI, I'M", textX, ty); ty += step(28)
+    ctx.fillStyle = '#2a1a0a'
+    ctx.font = `${f(22, 10)}px "Press Start 2P", monospace`
+    ctx.fillText('KRISHNA THOLUDUR', textX, ty); ty += step(30)
 
-  ctx.fillStyle = '#2a1a0a'
-  if (isMobile) {
+    ctx.fillStyle = '#5a2d8a'
+    const subtitleText = 'CS @ UCLA  \u00b7  SOFTWARE ENGINEER AND GAME DEVELOPER'
+    let subtitleFontSz = f(10, 6)
+    ctx.font = `${subtitleFontSz}px "Press Start 2P", monospace`
+    const subtitleW = ctx.measureText(subtitleText).width
+    if (subtitleW > textMaxW) {
+      subtitleFontSz = Math.max(5, Math.floor(subtitleFontSz * textMaxW / subtitleW))
+      ctx.font = `${subtitleFontSz}px "Press Start 2P", monospace`
+    }
+    ctx.fillText(subtitleText, textX, ty)
+    ty += step(28)
+
+    ctx.fillStyle = '#3a2a1a'
+    ctx.font = `${f(8, 6)}px "Press Start 2P", monospace`
+    ty = wrapText(ctx,
+      "I'm a CS student at UCLA who likes to make games and other weird interactive software. Check out my projects and art, or click the links to see what I'm up to!",
+      textX, ty, Math.round(textMaxW * 1.5), step(20))
+    ty += step(22)
+
+    // Link buttons
+    linkRectsOut.length = 0
+    const btnFontSz = f(7, 5)
+    ctx.font = `${btnFontSz}px "Press Start 2P", monospace`
+    const btnH    = Math.round(26 * uiScale)
+    const maxBtnX = lW * 0.57
+    let bx = textX, btnRowY = ty
+    for (const link of HOME_LINKS) {
+      const tw = ctx.measureText(link.label).width
+      const bw = tw + Math.round(28 * uiScale)
+      if (bx + bw > maxBtnX && bx > textX) { bx = textX; btnRowY += btnH + 6 }
+      const by = btnRowY
+      ctx.fillStyle = 'rgba(253,250,244,0.95)'
+      ctx.fillRect(bx, by, bw, btnH)
+      ctx.strokeStyle = link.color; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, btnH)
+      ctx.fillStyle = link.color; ctx.fillText(link.label, bx + Math.round(10 * uiScale), by + Math.round(btnH * 0.70))
+      linkRectsOut.push({ x: bx, y: by, w: bw, h: btnH, url: link.url })
+      bx += bw + 6
+    }
+
+    // WASD controls hint
+    if (isTouch) {
+      ctx.fillStyle = '#7a6a5a'
+      ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
+      ctx.textAlign = 'left'
+      ctx.fillText('USE BUTTONS TO MOVE + JUMP', textX, btnRowY + btnH + 18)
+    } else {
+      const kbTop = btnRowY + btnH + 18
+      const ks = Math.max(14, step(20))
+      const kh = Math.max(12, step(18))
+      function drawKey(kx, ky, label, kw) {
+        ctx.font = `${f(5, 4)}px "Press Start 2P", monospace`
+        const w = kw !== undefined ? kw : Math.max(ks, ctx.measureText(label).width + 10)
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(kx, ky, w, kh)
+        ctx.fillStyle = '#9a9088'; ctx.fillRect(kx + 1, ky + kh - 2, w - 2, 2)
+        ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1
+        ctx.strokeRect(kx + 0.5, ky + 0.5, w - 1, kh - 1)
+        ctx.fillStyle = '#2a1a0a'; ctx.textAlign = 'center'
+        ctx.fillText(label, kx + w / 2, ky + kh - 4)
+      }
+      drawKey(textX + ks,     kbTop,      'W')
+      drawKey(textX,          kbTop + ks, 'A')
+      drawKey(textX + ks,     kbTop + ks, 'S')
+      drawKey(textX + ks * 2, kbTop + ks, 'D')
+      drawKey(textX + ks * 4, kbTop + ks, 'SPC', Math.round(44 * uiScale))
+      ctx.fillStyle = '#7a6a5a'
+      ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
+      ctx.textAlign = 'left'
+      ctx.fillText('MOVE', textX + 3,          kbTop + ks * 2 + 14)
+      ctx.fillText('JUMP', textX + ks * 4 + 3, kbTop + ks * 2 + 14)
+    }
+  } else {
+    // ── Mobile layout ─────────────────────────────────────────────────────
+    const textX    = 24
+    const textMaxW = lW - 48
+
+    let ty = contentCY - step(120)
+    ctx.textAlign = 'left'
+
+    ctx.fillStyle = '#9a8a7a'
+    ctx.font = `${f(9, 6)}px "Press Start 2P", monospace`
+    ctx.fillText("HI, I'M", textX, ty); ty += step(28)
+
+    ctx.fillStyle = '#2a1a0a'
     const ns = Math.max(12, Math.round(lW * 0.034))
     ctx.font = `${ns}px "Press Start 2P", monospace`
     ctx.fillText('KRISHNA', textX, ty);  ty += Math.round(ns * 1.6)
     ctx.fillText('THOLUDUR', textX, ty); ty += Math.round(ns * 1.3)
-  } else {
-    ctx.font = `${f(22, 10)}px "Press Start 2P", monospace`
-    ctx.fillText('KRISHNA THOLUDUR', textX, ty); ty += step(30)
-  }
 
-  ctx.fillStyle = '#5a2d8a'
-  ctx.font = `${f(10, 6)}px "Press Start 2P", monospace`
-  if (isMobile) {
-    ctx.fillText('CS @ UCLA', textX, ty);         ty += step(18)
-    ctx.fillText('SWE + GAME DEV', textX, ty);    ty += step(24)
-  } else {
-    ctx.fillText('CS @ UCLA  \u00b7  SOFTWARE ENGINEER AND GAME DEVELOPER', textX, ty)
-    ty += step(28)
-  }
+    ctx.fillStyle = '#5a2d8a'
+    ctx.font = `${f(10, 6)}px "Press Start 2P", monospace`
+    ctx.fillText('CS @ UCLA', textX, ty);      ty += step(18)
+    ctx.fillText('SWE + GAME DEV', textX, ty); ty += step(24)
 
-  ctx.fillStyle = '#3a2a1a'
-  ctx.font = `${f(8, 6)}px "Press Start 2P", monospace`
-  ty = wrapText(ctx,
-    "I'm a CS student at UCLA who likes to make games and other weird interactive software. Currently working on Prime Weaver and Rebel Stars.",
-    textX, ty, textMaxW, step(20))
-  ty += step(22)
+    ctx.fillStyle = '#3a2a1a'
+    ctx.font = `${f(8, 6)}px "Press Start 2P", monospace`
+    ty = wrapText(ctx,
+      "I'm a CS student at UCLA who likes to make games and other weird interactive software. Currently working on Prime Weaver and Rebel Stars.",
+      textX, ty, textMaxW, step(20))
+    ty += step(22)
 
-  // Link buttons
-  linkRectsOut.length = 0
-  const btnFontSz = f(7, 5)
-  ctx.font = `${btnFontSz}px "Press Start 2P", monospace`
-  const btnH   = Math.round(26 * uiScale)
-  const maxBtnX = isMobile ? lW - 40 : lW * 0.57
-  let bx = textX, btnRowY = ty
-  for (const link of HOME_LINKS) {
-    const tw = ctx.measureText(link.label).width
-    const bw = tw + Math.round(28 * uiScale)
-    if (bx + bw > maxBtnX && bx > textX) { bx = textX; btnRowY += btnH + 6 }
-    const by = btnRowY
-    ctx.fillStyle = 'rgba(253,250,244,0.95)'
-    ctx.fillRect(bx, by, bw, btnH)
-    ctx.strokeStyle = link.color; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, btnH)
-    ctx.fillStyle = link.color; ctx.fillText(link.label, bx + Math.round(10 * uiScale), by + Math.round(btnH * 0.70))
-    linkRectsOut.push({ x: bx, y: by, w: bw, h: btnH, url: link.url })
-    bx += bw + 6
-  }
+    linkRectsOut.length = 0
+    const btnFontSz = f(7, 5)
+    ctx.font = `${btnFontSz}px "Press Start 2P", monospace`
+    const btnH    = Math.round(26 * uiScale)
+    const maxBtnX = lW - 40
+    let bx = textX, btnRowY = ty
+    for (const link of HOME_LINKS) {
+      const tw = ctx.measureText(link.label).width
+      const bw = tw + Math.round(28 * uiScale)
+      if (bx + bw > maxBtnX && bx > textX) { bx = textX; btnRowY += btnH + 6 }
+      const by = btnRowY
+      ctx.fillStyle = 'rgba(253,250,244,0.95)'
+      ctx.fillRect(bx, by, bw, btnH)
+      ctx.strokeStyle = link.color; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, btnH)
+      ctx.fillStyle = link.color; ctx.fillText(link.label, bx + Math.round(10 * uiScale), by + Math.round(btnH * 0.70))
+      linkRectsOut.push({ x: bx, y: by, w: bw, h: btnH, url: link.url })
+      bx += bw + 6
+    }
 
-  // Controls hint
-  if (isTouch || isMobile) {
     ctx.fillStyle = '#7a6a5a'
     ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
     ctx.textAlign = 'left'
     ctx.fillText('USE BUTTONS TO MOVE + JUMP', textX, btnRowY + btnH + 18)
-  } else {
-    // WASD pixel key boxes
-    const kbTop = btnRowY + btnH + 18
-    const ks = Math.max(14, step(20))
-    const kh = Math.max(12, step(18))
-    function drawKey(kx, ky, label, kw) {
-      ctx.font = `${f(5, 4)}px "Press Start 2P", monospace`
-      const w = kw !== undefined ? kw : Math.max(ks, ctx.measureText(label).width + 10)
-      ctx.fillStyle = '#e8e0d0'; ctx.fillRect(kx, ky, w, kh)
-      ctx.fillStyle = '#9a9088'; ctx.fillRect(kx + 1, ky + kh - 2, w - 2, 2)
-      ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1
-      ctx.strokeRect(kx + 0.5, ky + 0.5, w - 1, kh - 1)
-      ctx.fillStyle = '#2a1a0a'; ctx.textAlign = 'center'
-      ctx.fillText(label, kx + w / 2, ky + kh - 4)
-    }
-    drawKey(textX + ks,      kbTop,      'W')
-    drawKey(textX,           kbTop + ks, 'A')
-    drawKey(textX + ks,      kbTop + ks, 'S')
-    drawKey(textX + ks * 2,  kbTop + ks, 'D')
-    drawKey(textX + ks * 4,  kbTop + ks, 'SPC', Math.round(44 * uiScale))
-    ctx.fillStyle = '#7a6a5a'
-    ctx.font = `${f(6, 5)}px "Press Start 2P", monospace`
-    ctx.textAlign = 'left'
-    ctx.fillText('MOVE', textX + 3,        kbTop + ks * 2 + 14)
-    ctx.fillText('JUMP', textX + ks * 4 + 3, kbTop + ks * 2 + 14)
   }
 }
 
@@ -644,6 +726,10 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
       const img = new Image(); img.src = a.src; artImgs[a.id] = img
     }
     artImgs['portrait'] = new Image(); artImgs['portrait'].src = '/images/gcprofile.png'
+
+    const skillImgsArr = SKILL_ICONS.map(url => {
+      const img = new Image(); img.crossOrigin = 'anonymous'; img.src = url; return img
+    })
 
     const iconImgs = {}
     for (const [key, src] of Object.entries(ICON_SRCS)) {
@@ -951,7 +1037,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
 
       // Home room content (rendered before player so player goes in front)
       if (roomRef.current === 'home') {
-        drawHomeContent(ctx, logicalW, groundY, artImgs['portrait'], homeLinkRects, uiScale, isTouchDevice)
+        drawHomeContent(ctx, logicalW, groundY, artImgs['portrait'], skillImgsArr, homeLinkRects, uiScale, isTouchDevice)
       }
 
       const doors = ROOM_DOORS[roomRef.current] || {}

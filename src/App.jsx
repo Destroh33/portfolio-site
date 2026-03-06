@@ -28,6 +28,11 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#c4bdb4' }}>
+      <div className="rotate-overlay">
+        <div className="rotate-icon">&#8635;</div>
+        <div>ROTATE YOUR PHONE</div>
+        <div className="rotate-sub">THIS SITE IS LANDSCAPE ONLY</div>
+      </div>
       <NavBar room={room} onNav={setRoom} />
       <GameCanvas
         room={room}
