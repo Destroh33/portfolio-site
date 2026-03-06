@@ -1,3 +1,5 @@
+const B = import.meta.env.BASE_URL
+
 export const PROJECTS = [
   {
     id: 'prime-weaver',
@@ -49,7 +51,7 @@ export const PROJECTS = [
     description: 'A gun-based puzzle game made for Studio Jam 2025.',
     status: 'complete',
     tags: ['Unity', 'Puzzle', 'C#'],
-    image: '/images/oitc.png',
+    image: `${B}images/oitc.png`,
     itch: 'https://jomnaq.itch.io/one-in-the-chamber',
   },
   {
@@ -59,16 +61,16 @@ export const PROJECTS = [
     description: 'A puzzle platformer about escaping a mutation lab.',
     status: 'complete',
     tags: ['Unity', 'Puzzle', 'C#'],
-    image: '/images/slimesara.png',
+    image: `${B}images/slimesara.png`,
     itch: 'https://destroh3.itch.io/slimesara',
   },
 ]
 
 export const ART_PIECES = [
-  { id: 'art-bear',    name: 'Bear',        src: '/images/Bear.png',         caption: 'Bear model from Prime Weaver.' },
-  { id: 'art-revolver',name: 'Revolver',    src: '/images/revolver.png',     caption: 'Old-fashioned revolver for an FPS.' },
-  { id: 'art-vector',  name: 'KRISS Vector',src: '/images/vector.png',       caption: 'KRISS Vector for the VR game.' },
-  { id: 'art-deer',    name: 'Deer',        src: '/images/DeerDrawing.jpg',  caption: 'Deer sketch.' },
-  { id: 'art-tiger',   name: 'Tiger',       src: '/images/TigerDrawing.jpg', caption: 'Tiger sketch.' },
-  { id: 'art-pixel',   name: 'Pyramids',    src: '/images/sandsuckers.png',  caption: 'Pyramids pixel art for LD58.' },
+  { id: 'art-bear',    name: 'Bear',        src: `${B}images/Bear.png`,         caption: 'Bear model from Prime Weaver.' },
+  { id: 'art-revolver',name: 'Revolver',    src: `${B}images/revolver.png`,     caption: 'Old-fashioned revolver for an FPS.' },
+  { id: 'art-vector',  name: 'KRISS Vector',src: `${B}images/vector.png`,       caption: 'KRISS Vector for the VR game.' },
+  { id: 'art-deer',    name: 'Deer',        src: `${B}images/DeerDrawing.jpg`,  caption: 'Deer sketch.' },
+  { id: 'art-tiger',   name: 'Tiger',       src: `${B}images/TigerDrawing.jpg`, caption: 'Tiger sketch.' },
+  { id: 'art-pixel',   name: 'Pyramids',    src: `${B}images/sandsuckers.png`,  caption: 'Pyramids pixel art for LD58.' },
 ]

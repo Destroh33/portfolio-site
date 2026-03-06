@@ -1,6 +1,8 @@
 import { useRef, useEffect } from 'react'
 import { PROJECTS, ART_PIECES } from '../data/world'
 
+const B = import.meta.env.BASE_URL
+
 // ─── Physics constants ─────────────────────────────────────────────────────
 const GRAVITY       = 1800
 const MAX_SPEED     = 300
@@ -39,12 +41,12 @@ const DOOR_W = 56
 
 // ─── Project icon image sources ────────────────────────────────────────────
 const ICON_SRCS = {
-  spider: '/images/primeweaver.png',
-  xwing:  '/images/rebelstarsicon.png',
-  vr:     '/images/vrheadset.png',
-  pin:    '/images/tourguide.png',
-  gun:    '/images/oitcicon.png',
-  slime:  '/images/slime.png',
+  spider: `${B}images/primeweaver.png`,
+  xwing:  `${B}images/rebelstarsicon.png`,
+  vr:     `${B}images/vrheadset.png`,
+  pin:    `${B}images/tourguide.png`,
+  gun:    `${B}images/oitcicon.png`,
+  slime:  `${B}images/slime.png`,
 }
 
 // ─── Skill icons (ordered by importance, 4×3 grid) ────────────────────────
@@ -718,14 +720,14 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
     const canvas = canvasRef.current
     const ctx    = canvas.getContext('2d')
 
-    const spriteSheet = new Image(); spriteSheet.src = '/images/skateboardersheet.png'
-    const pedestalImg = new Image(); pedestalImg.src = '/images/pedestal.png'
+    const spriteSheet = new Image(); spriteSheet.src = `${B}images/skateboardersheet.png`
+    const pedestalImg = new Image(); pedestalImg.src = `${B}images/pedestal.png`
 
     const artImgs = {}
     for (const a of ART_PIECES) {
       const img = new Image(); img.src = a.src; artImgs[a.id] = img
     }
-    artImgs['portrait'] = new Image(); artImgs['portrait'].src = '/images/gcprofile.png'
+    artImgs['portrait'] = new Image(); artImgs['portrait'].src = `${B}images/gcprofile.png`
 
     const skillImgsArr = SKILL_ICONS.map(url => {
       const img = new Image(); img.crossOrigin = 'anonymous'; img.src = url; return img
