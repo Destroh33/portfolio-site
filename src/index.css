@@ -85,7 +85,7 @@ html, body, #root {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 200;
   background: rgba(42,26,10,0.55);
   display: flex;
   align-items: center;
@@ -384,3 +384,22 @@ html, body, #root {
 .rpg-btn.purple:hover { background: rgba(90,45,138,0.08); }
 .rpg-btn.green { border-color: #5c8f3a; color: #5c8f3a; }
 .rpg-btn.green:hover { background: rgba(92,143,58,0.08); }
+
+/* ─── PHONE / SMALL SCREEN MODAL ADJUSTMENTS ────────────────── */
+@media (max-height: 500px), (max-width: 700px) {
+  .modal-panel     { max-height: 96vh; }
+  .modal-body      { padding: 0.75rem 1rem 1rem; }
+  .modal-top-bar   { padding: 4px 8px 4px; }
+  .modal-close     { width: 30px; height: 30px; font-size: 14px; }
+  .quest-title     { font-size: 10px; }
+  .quest-desc      { font-size: 6px; }
+  .quest-status-badge { font-size: 6px; }
+  .stat-name       { font-size: 9px; }
+  .stat-class      { font-size: 6px; }
+  .stat-bio        { font-size: 0.7rem; }
+  .skills-title    { font-size: 7px; }
+  .skill-name      { font-size: 6px; width: 70px; }
+  .tag             { font-size: 5px; }
+  .art-caption     { font-size: 6px; }
+  .rpg-btn         { font-size: 5px; padding: 5px 8px; }
+}
