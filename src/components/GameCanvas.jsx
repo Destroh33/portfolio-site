@@ -154,27 +154,14 @@ function drawGround(ctx, groundY, lW, camX) {
 }
 
 // ─── Draw: door ───────────────────────────────────────────────────────────
-function drawDoor(ctx, side, groundY, lW, targetRoom, overrideX) {
-  const DW = DOOR_W, DH = 110
-  const doorX = overrideX !== undefined ? overrideX : (side === 'left' ? 0 : lW - DW)
-  const doorY = groundY - DH
-  ctx.fillStyle = '#5a3d22'; ctx.fillRect(doorX, doorY - 6, DW, DH + 6)
-  ctx.fillStyle = '#7a5534'; ctx.fillRect(doorX + 4, doorY, DW - 8, DH - 4)
-  ctx.fillStyle = '#8a6544'
-  ctx.fillRect(doorX + 10, doorY + 8,  DW - 20, 38)
-  ctx.fillRect(doorX + 10, doorY + 54, DW - 20, 38)
-  const knobX = side === 'left' ? doorX + DW - 12 : doorX + 12
-  ctx.fillStyle = '#d4a84a'
-  ctx.beginPath(); ctx.arc(knobX, doorY + 76, 4, 0, Math.PI * 2); ctx.fill()
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1; ctx.stroke()
-  ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
-  ctx.strokeRect(doorX + 0.5, doorY - 6 + 0.5, DW - 1, DH + 5)
+function drawDoor(ctx, side, groundY, lW, targetRoom) {
   const roomName = targetRoom === 'skatepark' ? 'SKATE' : targetRoom.toUpperCase()
-  const label = (side === 'left' ? '< ' : '') + roomName + (side === 'right' ? ' >' : '')
+  const label = side === 'left' ? `< ${roomName}` : `${roomName} >`
+  ctx.font = '12px "Press Start 2P", monospace'
   ctx.fillStyle = '#2a1a0a'
-  ctx.font = '5px "Press Start 2P", monospace'
-  ctx.textAlign = 'center'
-  ctx.fillText(label, doorX + DW / 2, doorY - 10)
+  ctx.textAlign = side === 'left' ? 'left' : 'right'
+  const x = side === 'left' ? 12 : lW - 12
+  ctx.fillText(label, x, groundY - 24)
 }
 
 // ─── Draw: pedestal ───────────────────────────────────────────────────────
@@ -321,8 +308,8 @@ function drawHomeContent(ctx, lW, groundY, portrait, skillImgs, linkRectsOut, ui
   const step = s => Math.round(s * uiScale)
 
 
-  const innerL = 52
-  const innerR = lW - 52
+  const innerL = 130
+  const innerR = lW - 130
 
   if (!isMobile) {
     // ── Tech icon strip: BOTTOM of panel ─────────────────────────────────
@@ -1048,11 +1035,11 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
         for (const plat of platforms) {
           if (plat.type !== 'ground') drawPlatform(ctx, plat, camX, logicalW, groundY)
         }
-        // Draw left door in world space
+        // Draw left door label in world space
         if (doors.left) {
           const doorScrX = Math.round(-camX)
           if (doorScrX > -DOOR_W && doorScrX < logicalW) {
-            drawDoor(ctx, 'left', groundY, logicalW, doors.left, doorScrX)
+            drawDoor(ctx, 'left', groundY, logicalW, doors.left)
           }
         }
       } else {
