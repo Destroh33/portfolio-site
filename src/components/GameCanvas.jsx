@@ -42,7 +42,8 @@ const ROOM_DOORS = {
   art:       { left:  'projects', right: 'skatepark' },
   skatepark: { left:  'art' },
 }
-const DOOR_W = 56
+const DOOR_W    = 56
+const NAV_CSS_H = 72   // CSS pixel height of the DOM nav bar
 
 // ─── Project icon image sources ────────────────────────────────────────────
 const ICON_SRCS = {
@@ -517,8 +518,8 @@ function drawSkater(ctx, player, animFrame, spriteSheet, camX) {
 }
 
 // ─── Draw: score HUD ──────────────────────────────────────────────────────
-function drawScoreHUD(ctx, state, lW) {
-  const x = lW - 185, y = 52
+function drawScoreHUD(ctx, state, lW, topY) {
+  const x = lW - 185, y = topY
   ctx.fillStyle = 'rgba(253,250,244,0.92)'
   ctx.fillRect(x, y, 175, 72)
   ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.5
@@ -1277,15 +1278,18 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
         if (doors.right) drawDoor(ctx, 'right', groundY, logicalW, doors.right)
       }
 
+      const navLogicalH = Math.round(NAV_CSS_H / gameScale)
+      const belowNav    = navLogicalH + 32   // 32 logical-px gap below nav bar (accounts for text ascent)
+
       const ROOM_TITLES = { projects: 'PROJECTS GALLERY', art: 'ART GALLERY' }
       const roomTitle = ROOM_TITLES[roomRef.current]
       if (roomTitle) {
         ctx.font = '14px "Press Start 2P", monospace'
         ctx.textAlign = 'center'
         ctx.fillStyle = 'rgba(253,250,244,0.7)'
-        ctx.fillText(roomTitle, logicalW / 2, 80)
+        ctx.fillText(roomTitle, logicalW / 2, belowNav + 2)
         ctx.fillStyle = '#2a1a0a'
-        ctx.fillText(roomTitle, logicalW / 2, 78)
+        ctx.fillText(roomTitle, logicalW / 2, belowNav)
       }
 
       const pedestalTopY = groundY - 3 - PED_H_IMG + 5
@@ -1343,7 +1347,7 @@ export default function GameCanvas({ room, onRoomChange, onOpenModal, paused }) 
       }
 
       if (roomRef.current === 'skatepark') {
-        drawScoreHUD(ctx, state, logicalW)
+        drawScoreHUD(ctx, state, logicalW, belowNav)
         drawTrickMsg(ctx, state, logicalW, logicalH)
       }
 
