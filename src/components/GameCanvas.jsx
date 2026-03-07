@@ -76,7 +76,7 @@ const HOME_LINKS = [
   { label: 'GITHUB',   url: 'https://github.com/Destroh33',                                  color: '#2a1a0a' },
   { label: 'LINKEDIN', url: 'https://www.linkedin.com/in/krishna-tholudur-5b90a5330/',       color: '#5a2d8a' },
   { label: 'ITCH.IO',  url: 'https://destroh3.itch.io/',                                     color: '#5c9f3a' },
-  { label: 'RESUME',   url: `${B}KrishnaTholudurResume.pdf`,                                 color: '#2a1a0a' },
+  { label: 'RESUME',   url: `${B}images/KrishnaTholudurResume.pdf`,                                 color: '#2a1a0a' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
