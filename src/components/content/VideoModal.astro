@@ -1,0 +1,46 @@
+{/* Centered screen-space video overlay. A plain flat DOM iframe (NOT inside the
+   3D-transformed flyby card), so it renders on iOS Safari and is tappable on
+   Android — unlike an iframe inside drei's <Html transform>. Opened from the
+   phone flyby card's "Watch trailer" button via openVideoAtom; closed by the X,
+   backdrop, or Esc. */}
+<div id="video-modal-root" hidden></div>
+
+<script>
+  import { openVideoAtom } from '../../stores/videoModal'
+
+  const root = document.getElementById('video-modal-root')!
+
+  function render(data: { src: string; title: string } | null) {
+    if (!data) {
+      root.hidden = true
+      root.innerHTML = ''
+      return
+    }
+    root.hidden = false
+    // autoplay=1 so the trailer starts on open (the tap is the user gesture).
+    const sep = data.src.includes('?') ? '&' : '?'
+    const src = `${data.src}${sep}autoplay=1`
+    root.innerHTML = `
+      <div class="video-modal-backdrop" data-close></div>
+      <div class="video-modal" role="dialog" aria-modal="true" aria-label="${data.title}">
+        <button class="video-modal-close" aria-label="Close" data-close>&times;</button>
+        <div class="video-modal-frame">
+          <iframe
+            src="${src}"
+            title="${data.title}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+        </div>
+      </div>
+    `
+    root.querySelectorAll('[data-close]').forEach((el) =>
+      el.addEventListener('click', () => openVideoAtom.set(null)),
+    )
+  }
+
+  openVideoAtom.subscribe(render)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') openVideoAtom.set(null)
+  })
+</script>

@@ -3,6 +3,7 @@ import { Html } from '@react-three/drei'
 import { planetFramesAtom } from '../../stores/flybyLayout'
 import { flybySequenceAtom } from '../../stores/flybySequence'
 import { narrowViewportAtom } from '../../stores/device'
+import { openVideoAtom } from '../../stores/videoModal'
 import { FLAGSHIPS, type Project } from '../../data/projects'
 
 // Phone: distanceFactor for the CENTERED card. Lower = larger on screen. This
@@ -18,9 +19,28 @@ const PHONE_BLURB_FACTOR = 1300
 const PHONE_SCRIM_SIZE = 900
 const PHONE_SCRIM_OPACITY = 0.4
 
-function Embed({ project }: { project: Project }) {
+function Embed({ project, narrow }: { project: Project; narrow: boolean }) {
   const media = project.media
   if (!media) return null
+
+  // Phone: an inline iframe inside the 3D-transformed card won't render on iOS
+  // Safari and isn't tappable on Android. So on phone, videos become a button
+  // that opens a flat screen-space overlay (VideoModal), and image embeds are
+  // dropped entirely (the screenshot adds little on a small screen, and the
+  // links still reach the project).
+  if (narrow) {
+    if (media.type === 'image') return null
+    return (
+      <button
+        type="button"
+        className="flyby-embed-btn"
+        onClick={() => openVideoAtom.set({ src: media.src, title: `${project.name} trailer` })}
+      >
+        ▶ Watch trailer
+      </button>
+    )
+  }
+
   if (media.type === 'image') {
     return <img className="flyby-embed" src={media.src} alt={`${project.name} screenshot`} loading="lazy" />
   }
@@ -124,9 +144,11 @@ export default function FlybyBlurbs() {
                   )}
                 </div>
               </div>
-              {project.media && (
+              {/* Skip the embed slot entirely for the one case that renders
+                  nothing (phone + image), so there's no empty box. */}
+              {project.media && !(narrow && project.media.type === 'image') && (
                 <div className="flyby-blurb-embed">
-                  <Embed project={project} />
+                  <Embed project={project} narrow={narrow} />
                 </div>
               )}
             </div>

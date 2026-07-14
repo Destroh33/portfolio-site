@@ -248,6 +248,21 @@ h3 {
   width: 100%;
 }
 
+/* Phone: "Watch trailer" button that replaces the inline video iframe (which
+   won't render/click inside the 3D-transformed card on mobile). Opens the flat
+   screen-space VideoModal. */
+.flyby-embed-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(125, 211, 252, 0.12);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
 .flyby-blurb-text {
   flex: 1 1 0;
   min-width: 0;
@@ -452,6 +467,61 @@ img.flyby-embed {
 
 .belt-modal-links a:hover {
   border-color: var(--accent);
+}
+
+/* ── Video overlay (content/VideoModal.astro) — flat screen-space player ──
+   Used on phone for flyby-card trailers; renders reliably on iOS/Android
+   because it's a normal DOM iframe, not one inside a 3D CSS transform. */
+.video-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(4, 5, 12, 0.8);
+  backdrop-filter: blur(3px);
+}
+
+.video-modal {
+  position: fixed;
+  z-index: 31;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(94vw, 720px);
+}
+
+.video-modal-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(125, 211, 252, 0.4);
+  background: #000;
+}
+
+.video-modal-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.video-modal-close {
+  position: absolute;
+  top: -2.6rem;
+  right: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.video-modal-close:hover {
+  color: var(--accent);
 }
 
 /* Ambient audio toggle — fixed speaker button, bottom-right. Enlarged and
