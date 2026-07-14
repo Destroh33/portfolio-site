@@ -12,6 +12,7 @@ import AmbientAudio from '../components/content/AmbientAudio.astro'
 import LoadingVeil from '../components/content/LoadingVeil.astro'
 import ProgressRail from '../components/content/ProgressRail.astro'
 import IdleHint from '../components/content/IdleHint.astro'
+import Analytics from '@vercel/analytics/astro'
 
 interface Props {
   title?: string
@@ -73,6 +74,7 @@ const projectJsonLd = [...FLAGSHIPS, ...BELT]
     <LoadingVeil />
     <slot />
     <DebugReadout />
+    <Analytics />
     <script>
       import { initScrollProgress } from '../stores/scrollProgress'
       import { initDeviceStores } from '../stores/device'
