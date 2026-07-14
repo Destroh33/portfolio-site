@@ -454,30 +454,44 @@ img.flyby-embed {
   border-color: var(--accent);
 }
 
-/* Ambient audio toggle — fixed speaker button, bottom-right. */
+/* Ambient audio toggle — fixed speaker button, bottom-right. Enlarged and
+   accent-tinted so it's easy to spot as the one persistent control. */
 .audio-toggle {
   position: fixed;
-  right: 1.1rem;
-  bottom: 1.1rem;
+  right: 1.3rem;
+  bottom: 1.3rem;
   z-index: 6;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 3.4rem;
+  height: 3.4rem;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(13, 16, 32, 0.7);
+  border: 2px solid var(--accent);
+  background: rgba(13, 16, 32, 0.82);
   backdrop-filter: blur(4px);
-  color: var(--muted);
+  color: var(--accent);
   cursor: pointer;
+  box-shadow: 0 0 18px rgba(125, 211, 252, 0.35);
   transition:
     color 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.15s;
 }
 
 .audio-toggle:hover {
   color: var(--ink);
   border-color: var(--accent);
+  box-shadow: 0 0 26px rgba(125, 211, 252, 0.55);
+  transform: scale(1.06);
+}
+
+/* Muted state (audio off): dim it down so "on" (bright, glowing) reads as the
+   active/default state and muting is the visibly quieter choice. */
+.audio-toggle:not(.is-on) {
+  color: var(--muted);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 .audio-toggle.is-on {
@@ -1052,9 +1066,9 @@ img.flyby-embed {
     flex-wrap: wrap;
   }
 
-  /* Give the audio toggle a touch more clearance from the screen edge. */
+  /* Keep the (now larger) audio toggle clear of the screen edge on phones. */
   .audio-toggle {
-    right: 0.8rem;
-    bottom: 0.8rem;
+    right: 1rem;
+    bottom: 1rem;
   }
 }

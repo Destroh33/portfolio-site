@@ -9,7 +9,7 @@
      so it feels bigger without the abrupt volume changes a raw swell caused.
    Muted by default; a speaker toggle starts everything on the first gesture. */}
 <button id="audio-toggle" class="audio-toggle" aria-label="Toggle ambient sound" aria-pressed="false">
-  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
     <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
     <g class="audio-waves" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
       <path d="M16.5 8.5a5 5 0 0 1 0 7" />
@@ -184,6 +184,37 @@
   btn?.addEventListener('click', () => {
     if (audioOnAtom.get()) disable()
     else void enable()
+  })
+
+  // Auto-start audio on the FIRST user interaction anywhere (browsers block
+  // audio before a gesture, so this is the earliest it can legally start). Once
+  // it fires — or if the user manually toggles first — these listeners remove
+  // themselves so we never override a deliberate choice.
+  let autostarted = false
+  function autostart() {
+    if (autostarted) return
+    autostarted = true
+    removeAutostart()
+    // If the user already interacted with the toggle, respect their state.
+    if (!audioOnAtom.get()) void enable()
+  }
+  function removeAutostart() {
+    window.removeEventListener('pointerdown', autostart)
+    window.removeEventListener('keydown', autostart)
+    window.removeEventListener('touchstart', autostart)
+    window.removeEventListener('wheel', autostart)
+    window.removeEventListener('scroll', autostart)
+  }
+  window.addEventListener('pointerdown', autostart, { passive: true })
+  window.addEventListener('keydown', autostart)
+  window.addEventListener('touchstart', autostart, { passive: true })
+  window.addEventListener('wheel', autostart, { passive: true })
+  window.addEventListener('scroll', autostart, { passive: true })
+  // If the user hits the toggle before any other gesture, cancel autostart so
+  // it can't re-enable audio they just turned off.
+  btn?.addEventListener('click', () => {
+    autostarted = true
+    removeAutostart()
   })
 
   audioOnAtom.subscribe((on) => {
