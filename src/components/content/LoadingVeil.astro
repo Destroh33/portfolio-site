@@ -1,0 +1,25 @@
+{/* Fade-from-black on entry: a full-screen veil with a soft pulsing dot that
+   covers the beat while WebGL initializes + the GLTFs stream in, then fades
+   out so the scene reveals intentionally instead of popping in half-loaded. */}
+<div id="loading-veil">
+  <div class="loading-dot" aria-hidden="true"></div>
+  <span class="loading-text">Entering orbit…</span>
+</div>
+
+<script>
+  const veil = document.getElementById('loading-veil')
+  if (veil) {
+    let done = false
+    const hide = () => {
+      if (done) return
+      done = true
+      veil.classList.add('is-hidden')
+      // remove from the tree after the fade so it can't intercept anything
+      window.setTimeout(() => veil.remove(), 900)
+    }
+    // Reveal shortly after load (WebGL + first frames), with a hard cap so a
+    // slow asset never traps the user behind the veil.
+    window.addEventListener('load', () => window.setTimeout(hide, 700))
+    window.setTimeout(hide, 5000)
+  }
+</script>

@@ -1,0 +1,65 @@
+---
+import { FLAGSHIPS } from '../../data/projects'
+// Stops shown on the rail, in journey order. Belt + contact bookend the
+// flagships. hero/about are the launch, not shown as dots.
+const STOPS = [
+  ...FLAGSHIPS.map((p) => ({ id: p.id, label: p.name })),
+  { id: 'belt', label: 'Also built' },
+  { id: 'contact', label: 'Contact' },
+]
+---
+
+{/* Vertical journey-progress rail on the right edge: a dot per stop, a fill
+   line showing how far along you are, click a dot to jump there. */}
+<nav id="progress-rail" aria-label="Journey progress">
+  <div class="rail-line"><span class="rail-fill"></span></div>
+  <ul class="rail-stops">
+    {STOPS.map((s) => (
+      <li>
+        <button class="rail-dot" data-stop={s.id} aria-label={`Jump to ${s.label}`}>
+          <span class="rail-tip">{s.label}</span>
+        </button>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<script>
+  import { scrollProgressAtom } from '../../stores/scrollProgress'
+  import { waypointsAtom } from '../../stores/flybyLayout'
+
+  const rail = document.getElementById('progress-rail')
+  const fill = rail?.querySelector('.rail-fill') as HTMLElement | null
+  const dots = Array.from(rail?.querySelectorAll('.rail-dot') ?? []) as HTMLButtonElement[]
+
+  // Position each dot vertically at its stop's scroll fraction, and jump there
+  // on click. Waypoints carry the measured scroll t per labelled stop.
+  function placeDots() {
+    const wps = waypointsAtom.get()
+    for (const dot of dots) {
+      const id = dot.dataset.stop!
+      const wp = wps.find((w) => w.id === id)
+      if (wp) dot.parentElement!.style.top = `${wp.t * 100}%`
+    }
+  }
+  waypointsAtom.subscribe(placeDots)
+
+  dots.forEach((dot) =>
+    dot.addEventListener('click', () => {
+      const wp = waypointsAtom.get().find((w) => w.id === dot.dataset.stop)
+      if (!wp) return
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      window.scrollTo({ top: wp.t * max, behavior: 'smooth' })
+    }),
+  )
+
+  scrollProgressAtom.subscribe((p) => {
+    if (fill) fill.style.height = `${p * 100}%`
+    // Mark the nearest-passed dot active.
+    const wps = waypointsAtom.get()
+    for (const dot of dots) {
+      const wp = wps.find((w) => w.id === dot.dataset.stop)
+      dot.classList.toggle('is-active', !!wp && p >= wp.t - 0.005)
+    }
+  })
+</script>

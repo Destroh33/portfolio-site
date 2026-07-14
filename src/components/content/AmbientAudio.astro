@@ -1,0 +1,193 @@
+{/* Audio system:
+   • ambient-drone.mp3 — a steady looping music bed (constant volume).
+   • Transition SFX layered ON TOP (not modulating the sparse music, which
+     lurched): whoosh on fly-IN, the SAME whoosh reversed on fly-OUT, and a
+     boom when the framing locks (held). Fired off flybySequenceAtom state
+     transitions.
+   • The music also gets a subtle REVERB send that swells during a cutscene —
+     this widens the *sense of space* (acts on the tail, not the note attacks),
+     so it feels bigger without the abrupt volume changes a raw swell caused.
+   Muted by default; a speaker toggle starts everything on the first gesture. */}
+<button id="audio-toggle" class="audio-toggle" aria-label="Toggle ambient sound" aria-pressed="false">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+    <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
+    <g class="audio-waves" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M16.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M19 6a8 8 0 0 1 0 12" />
+    </g>
+    <line class="audio-slash" x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+  </svg>
+</button>
+
+<script>
+  import { audioOnAtom } from '../../stores/audio'
+  import { flybySequenceAtom } from '../../stores/flybySequence'
+
+  const MUSIC = '/audio/ambient-drone.mp3'
+  const WHOOSH = '/audio/whoosh.mp3'
+  const BOOM = '/audio/boom.mp3'
+  const btn = document.getElementById('audio-toggle') as HTMLButtonElement | null
+
+  const MUSIC_VOL = 0.22
+  const WHOOSH_VOL = 0.26 // ~half the old level — the whooshes were too loud
+  const BOOM_VOL = 0.6
+  const REVERB_DRIFT = 0.06 // wet send while cruising
+  const REVERB_FLYBY = 0.32 // wet send during a cutscene
+
+  let ctx: AudioContext | null = null
+  let musicEl: HTMLAudioElement | null = null
+  let musicGain: GainNode | null = null
+  let reverb: ConvolverNode | null = null
+  let reverbSend: GainNode | null = null // music → reverb amount
+  let whooshBuf: AudioBuffer | null = null
+  let whooshRevBuf: AudioBuffer | null = null
+  let boomBuf: AudioBuffer | null = null
+  let ready = false
+  let prevState = 'chasing'
+
+  // Generate a short algorithmic reverb impulse (decaying noise) — no IR file.
+  function makeImpulse(c: AudioContext, seconds: number, decay: number): AudioBuffer {
+    const rate = c.sampleRate
+    const len = Math.floor(rate * seconds)
+    const buf = c.createBuffer(2, len, rate)
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buf.getChannelData(ch)
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay)
+      }
+    }
+    return buf
+  }
+
+  function reverseBuffer(c: AudioContext, src: AudioBuffer): AudioBuffer {
+    const out = c.createBuffer(src.numberOfChannels, src.length, src.sampleRate)
+    for (let ch = 0; ch < src.numberOfChannels; ch++) {
+      const s = src.getChannelData(ch)
+      const d = out.getChannelData(ch)
+      for (let i = 0, n = src.length; i < n; i++) d[i] = s[n - 1 - i]
+    }
+    return out
+  }
+
+  async function loadBuffer(c: AudioContext, url: string): Promise<AudioBuffer> {
+    const res = await fetch(url)
+    return c.decodeAudioData(await res.arrayBuffer())
+  }
+
+  // Trim leading/trailing near-silence so the sound fires INSTANTLY on trigger
+  // (the source clips have seconds of padding, which threw off transition sync).
+  function trimSilence(c: AudioContext, src: AudioBuffer, thresh = 0.012): AudioBuffer {
+    const n = src.length
+    const ch0 = src.getChannelData(0)
+    let start = 0
+    let end = n - 1
+    while (start < n && Math.abs(ch0[start]) < thresh) start++
+    while (end > start && Math.abs(ch0[end]) < thresh) end--
+    // small padding so we don't clip the very attack/tail
+    const pad = Math.floor(src.sampleRate * 0.01)
+    start = Math.max(0, start - pad)
+    end = Math.min(n - 1, end + pad)
+    const len = Math.max(1, end - start + 1)
+    const out = c.createBuffer(src.numberOfChannels, len, src.sampleRate)
+    for (let ch = 0; ch < src.numberOfChannels; ch++) {
+      out.getChannelData(ch).set(src.getChannelData(ch).subarray(start, start + len))
+    }
+    return out
+  }
+
+  async function init() {
+    if (ctx) return
+    ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+
+    // Music bed → gain → destination, plus a parallel reverb send.
+    musicEl = new Audio(MUSIC)
+    musicEl.loop = true
+    musicEl.crossOrigin = 'anonymous'
+    const musicSrc = ctx.createMediaElementSource(musicEl)
+    musicGain = ctx.createGain()
+    musicGain.gain.value = 0
+    musicSrc.connect(musicGain).connect(ctx.destination)
+
+    reverb = ctx.createConvolver()
+    reverb.buffer = makeImpulse(ctx, 3.2, 2.4)
+    reverbSend = ctx.createGain()
+    reverbSend.gain.value = 0
+    musicSrc.connect(reverbSend).connect(reverb).connect(ctx.destination)
+
+    // Decode SFX, TRIM their silence padding, then build the reversed whoosh
+    // from the already-trimmed buffer so its onset is instant too.
+    const [wbRaw, bbRaw] = await Promise.all([loadBuffer(ctx, WHOOSH), loadBuffer(ctx, BOOM)])
+    whooshBuf = trimSilence(ctx, wbRaw)
+    boomBuf = trimSilence(ctx, bbRaw)
+    whooshRevBuf = reverseBuffer(ctx, whooshBuf)
+    ready = true
+  }
+
+  function playSfx(buf: AudioBuffer | null, gain = 1) {
+    if (!ctx || !buf || !audioOnAtom.get()) return
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain()
+    g.gain.value = gain
+    src.connect(g).connect(ctx.destination)
+    src.start()
+  }
+
+  function setReverb(wet: number) {
+    if (!ctx || !reverbSend) return
+    reverbSend.gain.setTargetAtTime(audioOnAtom.get() ? wet : 0, ctx.currentTime, 0.4)
+  }
+
+  function setMusic(on: boolean) {
+    if (!ctx || !musicGain) return
+    musicGain.gain.setTargetAtTime(on ? MUSIC_VOL : 0, ctx.currentTime, 0.25)
+    setReverb(REVERB_DRIFT)
+  }
+
+  // React to flyby state transitions: SFX one-shots + reverb-space swell.
+  flybySequenceAtom.subscribe((seq) => {
+    const s = seq.state
+    if (s === prevState) return
+    if (audioOnAtom.get() && ready) {
+      if (s === 'flyIn') {
+        playSfx(whooshBuf, WHOOSH_VOL)
+        setReverb(REVERB_FLYBY) // open up the space as we swing in
+      } else if (s === 'held') {
+        playSfx(boomBuf, BOOM_VOL) // framing locks
+      } else if (s === 'flyOut') {
+        playSfx(whooshRevBuf, WHOOSH_VOL)
+      } else if (s === 'chasing') {
+        setReverb(REVERB_DRIFT) // settle back to the drift
+      }
+    }
+    prevState = s
+  })
+
+  async function enable() {
+    await init()
+    if (ctx!.state === 'suspended') await ctx!.resume()
+    try {
+      await musicEl!.play()
+    } catch {
+      /* user gesture drives this; autoplay block won't trigger */
+    }
+    audioOnAtom.set(true)
+    setMusic(true)
+  }
+
+  function disable() {
+    audioOnAtom.set(false)
+    setMusic(false)
+    setReverb(0)
+  }
+
+  btn?.addEventListener('click', () => {
+    if (audioOnAtom.get()) disable()
+    else void enable()
+  })
+
+  audioOnAtom.subscribe((on) => {
+    btn?.setAttribute('aria-pressed', String(on))
+    btn?.classList.toggle('is-on', on)
+  })
+</script>

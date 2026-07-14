@@ -1,0 +1,27 @@
+---
+import { BUILT_WITH, ATTRIBUTIONS, CREDITS_REPO, CREDITS_CLOSING } from '../../data/credits'
+---
+
+{/* Credits beat on the return-home leg. The visible presentation is the 3D
+   station panel (scene/SpaceStation.tsx); this in-flow block is the scroll
+   anchor for the 'credits' waypoint AND the accessible/crawlable copy of the
+   attributions (the CC-BY model credits must exist in real DOM). */}
+<div id="credits" class="section-spacer">
+  <section class="sr-only">
+    <h2>Credits</h2>
+    <h3>Built with</h3>
+    <ul>
+      {BUILT_WITH.map((c) => (
+        <li>{c.label} — {c.detail}{c.href ? ` (${c.href})` : ''}</li>
+      ))}
+    </ul>
+    <h3>Attributions</h3>
+    <ul>
+      {ATTRIBUTIONS.map((c) => (
+        <li>{c.label} {c.detail}{c.href ? ` (${c.href})` : ''}</li>
+      ))}
+    </ul>
+    <p>{CREDITS_CLOSING}</p>
+    <p><a href={CREDITS_REPO} target="_blank" rel="noreferrer">Source on GitHub</a></p>
+  </section>
+</div>

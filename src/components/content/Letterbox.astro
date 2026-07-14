@@ -1,0 +1,17 @@
+{/* Cinematic letterbox bars that slide in during planet/belt cutscenes
+   (any flyby state other than 'chasing') and slide back out in flight. */}
+<div id="letterbox-top" class="letterbox" aria-hidden="true"></div>
+<div id="letterbox-bottom" class="letterbox" aria-hidden="true"></div>
+
+<script>
+  import { flybySequenceAtom } from '../../stores/flybySequence'
+
+  const top = document.getElementById('letterbox-top')
+  const bottom = document.getElementById('letterbox-bottom')
+
+  flybySequenceAtom.subscribe((seq) => {
+    const active = seq.state !== 'chasing'
+    top?.classList.toggle('active', active)
+    bottom?.classList.toggle('active', active)
+  })
+</script>

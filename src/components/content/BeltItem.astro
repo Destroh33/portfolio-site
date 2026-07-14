@@ -1,0 +1,20 @@
+---
+import type { Project } from '../../data/projects'
+
+interface Props {
+  project: Project
+}
+
+const { project } = Astro.props
+---
+
+<li data-belt-item={project.id}>
+  <span class="belt-name">{project.name}</span>
+  <span>{project.description}</span>
+  {project.links.github && (
+    <a class="link-btn" href={project.links.github} target="_blank" rel="noreferrer">GitHub</a>
+  )}
+  {project.links.demo && (
+    <a class="link-btn" href={project.links.demo} target="_blank" rel="noreferrer">Play</a>
+  )}
+</li>

@@ -1,0 +1,26 @@
+---
+import { FLAGSHIPS, BELT } from '../../data/projects'
+import FlagshipArticle from './FlagshipArticle.astro'
+import BeltItem from './BeltItem.astro'
+---
+
+<section id="projects">
+  <h2 class="sr-only">Projects</h2>
+  {FLAGSHIPS.map((project) => (
+    <div class="flagship-slot" data-planet-slot={project.id}>
+      <FlagshipArticle project={project} />
+    </div>
+  ))}
+
+  {/* Real accessible content, visually hidden — belt asteroids get a
+     world-space popup treatment as a follow-up, matching the flagship
+     planets' FlybyBlurbs. */}
+  <div id="belt" class="section-spacer">
+    <section class="sr-only">
+      <h3>Also built</h3>
+      <ul>
+        {BELT.map((project) => <BeltItem project={project} />)}
+      </ul>
+    </section>
+  </div>
+</section>

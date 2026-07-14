@@ -1,0 +1,17 @@
+---
+import { SITE } from '../../data/site'
+import { SKILLS } from '../../data/skills'
+---
+
+{/* Real accessible content, visually hidden — the wrapper stays in normal
+   flow (as a plain spacer) purely to give the "about" waypoint a scroll
+   anchor; there's no visible 2D presentation of this beat yet. */}
+<div id="about" class="section-spacer">
+  <section class="sr-only">
+    <h2>About</h2>
+    <p>{SITE.bio}</p>
+    <ul>
+      {SKILLS.map((skill) => <li>{skill.name}</li>)}
+    </ul>
+  </section>
+</div>

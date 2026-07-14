@@ -1,0 +1,63 @@
+{/* Centered modal for a belt project's full blurb — a real DOM overlay (not a
+   3D Html), so it's crisp, scrollable, and its embed/links work like the
+   planet flyby panels. Driven by openBeltProjectAtom; the X (or backdrop /
+   Esc) closes it. */}
+<div id="belt-modal-root" hidden></div>
+
+<script>
+  import { openBeltProjectAtom } from '../../stores/beltModal'
+
+  const root = document.getElementById('belt-modal-root')!
+
+  function mediaHTML(project: any): string {
+    const m = project.media
+    if (!m) return ''
+    const inner =
+      m.type === 'image'
+        ? `<img src="${m.src}" alt="${project.name} screenshot" loading="lazy" />`
+        : `<iframe src="${m.src}" title="${project.name} embed" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+    return `<div class="belt-modal-media">${inner}</div>`
+  }
+
+  function linksHTML(project: any): string {
+    const l = project.links || {}
+    const a: string[] = []
+    if (l.github) a.push(`<a href="${l.github}" target="_blank" rel="noreferrer">GitHub</a>`)
+    if (l.demo) a.push(`<a href="${l.demo}" target="_blank" rel="noreferrer">Play</a>`)
+    if (l.slides) a.push(`<a href="${l.slides}" target="_blank" rel="noreferrer">Slides</a>`)
+    return a.length ? `<div class="belt-modal-links">${a.join('')}</div>` : ''
+  }
+
+  function tagsHTML(project: any): string {
+    if (!project.tags?.length) return ''
+    return `<ul class="belt-modal-tags">${project.tags.map((t: string) => `<li>${t}</li>`).join('')}</ul>`
+  }
+
+  function render(project: any | null) {
+    if (!project) {
+      root.hidden = true
+      root.innerHTML = ''
+      return
+    }
+    root.hidden = false
+    root.innerHTML = `
+      <div class="belt-modal-backdrop" data-close></div>
+      <div class="belt-modal" role="dialog" aria-modal="true" aria-label="${project.name}">
+        <button class="belt-modal-close" aria-label="Close" data-close>&times;</button>
+        <h2>${project.name}</h2>
+        <p>${project.description}</p>
+        ${tagsHTML(project)}
+        ${mediaHTML(project)}
+        ${linksHTML(project)}
+      </div>
+    `
+    root.querySelectorAll('[data-close]').forEach((el) =>
+      el.addEventListener('click', () => openBeltProjectAtom.set(null)),
+    )
+  }
+
+  openBeltProjectAtom.subscribe(render)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') openBeltProjectAtom.set(null)
+  })
+</script>

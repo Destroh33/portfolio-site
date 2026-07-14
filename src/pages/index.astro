@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Credits from '../components/content/Credits.astro'
+import Hero from '../components/content/Hero.astro'
+import About from '../components/content/About.astro'
+import ProjectsSection from '../components/content/ProjectsSection.astro'
+import Contact from '../components/content/Contact.astro'
+---
+
+<BaseLayout>
+  <main>
+    <Hero />
+    <About />
+    <ProjectsSection />
+    <Contact />
+    <Credits />
+    {/* Scroll room for the final return leg (credits -> back around to Start on
+       the closed path). Without it, the leg's whole arc maps to the sliver of
+       scroll after the last stop's center and the camera races it. */}
+    <div class="return-spacer" aria-hidden="true"></div>
+  </main>
+</BaseLayout>

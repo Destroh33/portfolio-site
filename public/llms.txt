@@ -1,0 +1,22 @@
+# Krishna Tholudur
+
+CS student at UCLA. Software engineer and game developer.
+
+I'm a CS student at UCLA who likes to make games and other weird interactive software.
+
+## Links
+- GitHub: https://github.com/Destroh33
+- LinkedIn: https://www.linkedin.com/in/krishna-tholudur-5b90a5330/
+- itch.io: https://destroh3.itch.io/
+- Resume: /images/KrishnaTholudurResume.pdf
+
+## Projects
+- Broken Peaces — 2.5D combat platformer in Unreal Engine 5; fast melee/ranged combat across three chapters. Won 1st of 18 teams at UCLA's Fiat Ludum Game Jam 2026.
+- Prime Weaver — third-person wizard arena game (Unreal, C++, Blueprints, SRS 2025). https://github.com/Destroh33/PrimeWeaver
+- MotoMania — solo-developed time-trial motorcycle racing game (Unity 6, C#) with physics-based handling, drift mechanics, and a global online leaderboard. https://github.com/Destroh33/RacingGame
+- AI Tour Guide — mobile app generating location-aware narrated walking tours (React Native, Expo, AI, TypeScript). https://github.com/JCVillanova/ai-tour-guide-cs35l-project
+- Rebel Stars — 1v1 starfighter dogfight prototype (Unity, C#, networking). https://github.com/Destroh33/PlaneFighter
+- VR Shooter — VR target shooter built for an ACM Studio workshop (Unity, VR, C#). https://github.com/Destroh33/VRWSTest2
+- One in the Chamber — gun-based puzzle game, Studio Jam 2025 (Unity, C#).
+- Slimesara — puzzle platformer about escaping a mutation lab (Unity, C#).
+- Cross Movements Disorder Lab (UCLA) — building VR environments in Unreal/Unity for Parkinson's clinical research on freezing of gait and patient motor responses.

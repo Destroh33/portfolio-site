@@ -1,0 +1,88 @@
+---
+import '../styles/global.css'
+import { SITE, SITE_LINKS } from '../data/site'
+import { FLAGSHIPS, BELT } from '../data/projects'
+import DebugReadout from '../components/DebugReadout.astro'
+import SceneCanvas from '../components/scene/SceneCanvas'
+import IntroOverlay from '../components/content/IntroOverlay.astro'
+import Letterbox from '../components/content/Letterbox.astro'
+import BeltModal from '../components/content/BeltModal.astro'
+import AmbientAudio from '../components/content/AmbientAudio.astro'
+import LoadingVeil from '../components/content/LoadingVeil.astro'
+import ProgressRail from '../components/content/ProgressRail.astro'
+import IdleHint from '../components/content/IdleHint.astro'
+
+interface Props {
+  title?: string
+  description?: string
+}
+
+const { title = `${SITE.name} | Portfolio`, description = SITE.bio } = Astro.props
+
+const personJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: SITE.name,
+  jobTitle: SITE.role,
+  description: SITE.bio,
+  sameAs: SITE_LINKS.filter((l) => l.label !== 'Resume').map((l) => l.url),
+}
+
+const projectJsonLd = [...FLAGSHIPS, ...BELT]
+  .filter((p) => !p.isPlaceholder)
+  .map((p) => ({
+    '@context': 'https://schema.org',
+    '@type': 'VideoGame',
+    name: p.name,
+    description: p.description,
+    genre: p.tags,
+    ...(p.links.github ? { codeRepository: p.links.github } : {}),
+    ...(p.links.demo ? { url: p.links.demo } : {}),
+  }))
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(personJsonLd)} is:inline />
+    {projectJsonLd.map((entry) => <script type="application/ld+json" set:html={JSON.stringify(entry)} is:inline />)}
+  </head>
+  <body>
+    <SceneCanvas client:load />
+    <IntroOverlay />
+    <Letterbox />
+    <BeltModal />
+    <AmbientAudio />
+    <ProgressRail />
+    <IdleHint />
+    <LoadingVeil />
+    <slot />
+    <DebugReadout />
+    <script>
+      import { initScrollProgress } from '../stores/scrollProgress'
+      import { initDeviceStores } from '../stores/device'
+      import { initFlybyLayout } from '../stores/flybyLayout'
+      import { initFlybySequence } from '../stores/flybySequence'
+      import { initIntroLayout } from '../stores/introLayout'
+
+      initScrollProgress()
+      initDeviceStores()
+      initFlybyLayout()
+      initFlybySequence()
+      initIntroLayout()
+    </script>
+  </body>
+</html>

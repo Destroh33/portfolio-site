@@ -1,0 +1,43 @@
+---
+import type { Project } from '../../data/projects'
+
+interface Props {
+  project: Project
+}
+
+const { project } = Astro.props
+---
+
+<article class="project-article sr-only" data-planet={project.id}>
+  <h3>
+    {project.name}
+    <span class="project-status">{project.status}</span>
+  </h3>
+  <p>{project.description}</p>
+  {project.description.startsWith('[TODO') && <p class="placeholder-note">Content coming soon.</p>}
+  {project.tags.length > 0 && (
+    <ul class="tag-list">
+      {project.tags.map((tag) => <li>{tag}</li>)}
+    </ul>
+  )}
+  {project.media && (
+    <div class="project-media">
+      {project.media.type === 'image' ? (
+        <img src={project.media.src} alt={`${project.name} screenshot`} loading="lazy" />
+      ) : (
+        <iframe src={project.media.src} title={`${project.name} embed`} loading="lazy" allowfullscreen />
+      )}
+    </div>
+  )}
+  <div class="link-row">
+    {project.links.github && (
+      <a class="link-btn" href={project.links.github} target="_blank" rel="noreferrer">GitHub</a>
+    )}
+    {project.links.demo && (
+      <a class="link-btn" href={project.links.demo} target="_blank" rel="noreferrer">Play</a>
+    )}
+    {project.links.slides && (
+      <a class="link-btn" href={project.links.slides} target="_blank" rel="noreferrer">Slides</a>
+    )}
+  </div>
+</article>

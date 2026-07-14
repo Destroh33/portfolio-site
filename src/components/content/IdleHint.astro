@@ -1,0 +1,40 @@
+{/* Persistent scroll nudge: if the user stops scrolling mid-journey (and isn't
+   at the very start, where the intro cue already lives, or the very end), a
+   gentle "keep scrolling" hint fades in. Any scroll hides it and resets the
+   idle timer. */}
+<div id="idle-hint" aria-hidden="true">
+  <span>Keep scrolling</span>
+  <span class="idle-chevron"></span>
+</div>
+
+<script>
+  import { scrollProgressAtom } from '../../stores/scrollProgress'
+
+  const hint = document.getElementById('idle-hint')
+  let timer = 0
+  let visible = false
+
+  function show() {
+    if (visible) return
+    visible = true
+    hint?.classList.add('is-shown')
+  }
+  function hide() {
+    if (!visible) return
+    visible = false
+    hint?.classList.remove('is-shown')
+  }
+
+  function arm() {
+    hide()
+    window.clearTimeout(timer)
+    const p = scrollProgressAtom.get()
+    // Only nudge in the middle of the journey — not during the intro (<8%)
+    // or near the end (>92%).
+    if (p > 0.08 && p < 0.92) {
+      timer = window.setTimeout(show, 4500)
+    }
+  }
+
+  scrollProgressAtom.subscribe(arm)
+</script>

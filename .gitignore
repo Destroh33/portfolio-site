@@ -1,10 +1,15 @@
 # Dependencies
 node_modules/
 
-# Build output (keep dist tracked for deployment)
-# dist/
+# Build output
+dist/
+docs/
+.vercel/
 
-# Vite cache
+# Astro
+.astro/
+
+# Vite cache (legacy)
 .vite/
 
 # Claude settings
@@ -13,3 +18,4 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+TECHNICAL.md

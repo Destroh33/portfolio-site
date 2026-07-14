@@ -1,0 +1,15 @@
+---
+import { SITE } from '../../data/site'
+---
+
+{/* Real accessible content — visually hidden. The visible/interactive intro
+   presentation is IntroOverlay.astro (fixed over the 3D asteroid, fades with
+   scroll, and has its own real copy of the link buttons — not duplicated here
+   to avoid triplicating interactive links across the page). This section
+   still needs to exist in normal flow as the "hero" waypoint's scroll anchor
+   for the camera path. */}
+<section id="hero" class="sr-only">
+  <h1>{SITE.name}</h1>
+  <p>{SITE.role}</p>
+  <img src={SITE.portrait} alt={`Portrait of ${SITE.name}`} />
+</section>
