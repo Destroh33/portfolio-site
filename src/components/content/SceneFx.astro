@@ -1,0 +1,126 @@
+{/* Screen-space layers for the flight feel, above the canvas and below the
+   letterbox (pointer-events none):
+   • warp lines: hyperspace speed lines on a plain 2D canvas. Deliberately NOT
+     in the WebGL scene: thin, bright, fast 3D streaks shimmer at sub-pixel
+     width, and Bloom amplified that into full-screen flicker. Up here they
+     skip postprocessing entirely and get the 2D canvas's own antialiasing.
+   • warp tunnel: dark edges + a cold rim that close in with warpAtom.
+   • arrival flash: a quick bloom of the planet's color when a flyby locks in,
+     on the same beat as the 3D shockwave and the boom SFX. */}
+<canvas id="warp-lines" aria-hidden="true"></canvas>
+<div id="warp-tunnel" aria-hidden="true"></div>
+<div id="arrival-flash" aria-hidden="true"></div>
+
+<script>
+  import { warpAtom, warpOrigin } from '../../stores/sceneFx'
+  import { flybySequenceAtom } from '../../stores/flybySequence'
+  import { reducedMotionAtom } from '../../stores/device'
+  import { PROJECT_TINT } from '../shard'
+
+  const tunnel = document.getElementById('warp-tunnel')!
+  const flash = document.getElementById('arrival-flash')!
+
+  let shown = -1
+  warpAtom.subscribe((w) => {
+    // Written every frame; only touch the DOM on visible change.
+    const v = Math.round(w * 100) / 100
+    if (v === shown) return
+    shown = v
+    tunnel.style.opacity = String(v)
+  })
+
+  // ── Warp speed lines ────────────────────────────────────────────────────
+  // Points in a simple perspective tunnel: each has a lateral offset (x, y)
+  // and a depth z in (NEAR, FAR]; screen = center + offset / z * focal. Depth
+  // shrinks at a warp-scaled speed, so lines accelerate outward past the
+  // edges and recycle at the far end. The tail is the same point further back.
+  const lines = document.getElementById('warp-lines') as HTMLCanvasElement
+  const g = lines.getContext('2d')!
+  const COUNT = window.matchMedia('(pointer: coarse)').matches ? 90 : 190
+  const NEAR = 0.04
+  const FAR = 1
+  const R_MIN = 0.17 // clear hole around the ship so lines stream past, not over it
+  const R_MAX = 1.3
+  const SPEED = 1.7 // depth units/s at full warp
+  const MAX_TAIL = 0.32 // depth length of a line at full warp
+
+  const px = new Float32Array(COUNT)
+  const py = new Float32Array(COUNT)
+  const pz = new Float32Array(COUNT)
+  const bright = new Float32Array(COUNT)
+  for (let i = 0; i < COUNT; i++) {
+    const a = Math.random() * Math.PI * 2
+    const r = R_MIN + (R_MAX - R_MIN) * Math.pow(Math.random(), 0.7)
+    px[i] = Math.cos(a) * r
+    py[i] = Math.sin(a) * r
+    pz[i] = NEAR + Math.random() * (FAR - NEAR)
+    bright[i] = 0.4 + Math.random() * 0.6
+  }
+
+  let dpr = 1
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+    lines.width = Math.round(window.innerWidth * dpr)
+    lines.height = Math.round(window.innerHeight * dpr)
+  }
+  resize()
+  window.addEventListener('resize', resize)
+
+  let lastTime = 0
+  let cleared = true
+  function drawLines(now: number) {
+    requestAnimationFrame(drawLines)
+    const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.1) : 0
+    lastTime = now
+    const warp = reducedMotionAtom.get() ? 0 : warpAtom.get()
+    const w = lines.width
+    const h = lines.height
+    if (warp < 0.01) {
+      if (!cleared) {
+        g.clearRect(0, 0, w, h)
+        cleared = true
+      }
+      return
+    }
+    cleared = false
+    g.clearRect(0, 0, w, h)
+    g.globalCompositeOperation = 'lighter'
+    g.lineCap = 'round'
+    // Radiate from the ship, wherever the chase camera has it framed.
+    const cx = warpOrigin.x * w
+    const cy = warpOrigin.y * h
+    tunnel.style.setProperty('--ox', `${(warpOrigin.x * 100).toFixed(1)}%`)
+    tunnel.style.setProperty('--oy', `${(warpOrigin.y * 100).toFixed(1)}%`)
+    const focal = Math.min(w, h) * 0.5
+    const tail = MAX_TAIL * warp
+    const fade = Math.pow(warp, 1.3)
+    for (let i = 0; i < COUNT; i++) {
+      pz[i] -= SPEED * warp * dt * (0.6 + bright[i] * 0.7)
+      if (pz[i] <= NEAR) pz[i] += FAR - NEAR
+      const z = pz[i]
+      const zt = Math.min(FAR, z + tail)
+      const near = 1 - z / FAR // 0 far away, 1 right at the camera
+      const a = fade * bright[i] * near * near
+      if (a < 0.01) continue
+      g.strokeStyle = `rgba(216, 236, 255, ${a.toFixed(3)})`
+      g.lineWidth = (0.6 + near * 2.2) * dpr
+      g.beginPath()
+      g.moveTo(cx + (px[i] / zt) * focal, cy + (py[i] / zt) * focal)
+      g.lineTo(cx + (px[i] / z) * focal, cy + (py[i] / z) * focal)
+      g.stroke()
+    }
+    g.globalCompositeOperation = 'source-over'
+  }
+  requestAnimationFrame(drawLines)
+
+  let prev = flybySequenceAtom.get().state
+  flybySequenceAtom.subscribe((seq) => {
+    if (seq.state === 'held' && prev === 'flyIn' && seq.activeId && PROJECT_TINT[seq.activeId] && !reducedMotionAtom.get()) {
+      flash.style.setProperty('--flash', PROJECT_TINT[seq.activeId])
+      flash.classList.remove('is-firing')
+      void flash.offsetWidth // restart the animation
+      flash.classList.add('is-firing')
+    }
+    prev = seq.state
+  })
+</script>

@@ -1,9 +1,10 @@
 import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useStore } from '@nanostores/react'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, Vignette, Noise, HueSaturation, BrightnessContrast } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import SpaceDust from './SpaceDust'
+import ArrivalShockwave from './ArrivalShockwave'
 import CameraRig from './CameraRig'
 import Ship from './Ship'
 import IntroPlanet from './IntroPlanet'
@@ -74,17 +75,29 @@ export default function SceneCanvas() {
         <SpaceStation />
         <FlybyBlurbs />
         <SpaceDust />
+        <ArrivalShockwave />
 
         {/* bloomEnabled is fixed for the session, so these branches never swap
             at runtime — no composer remount, no flicker. */}
+        {/* Grade + grain ride in both branches: a touch more contrast and
+            saturation for a filmic finish, then fine animated grain last so it
+            sits on top of the vignette. These merge into the same effect pass
+            as Vignette, so they add almost nothing. Composer AA settings are
+            untouched (multisampling stays 0; see the flicker note). */}
         {bloomEnabled ? (
           <EffectComposer multisampling={0}>
             <Bloom intensity={0.8} luminanceThreshold={0.65} luminanceSmoothing={0.25} />
+            <HueSaturation saturation={0.1} />
+            <BrightnessContrast contrast={0.08} />
             <Vignette eskil={false} offset={0.3} darkness={0.7} />
+            <Noise opacity={0.045} />
           </EffectComposer>
         ) : (
           <EffectComposer multisampling={0}>
+            <HueSaturation saturation={0.1} />
+            <BrightnessContrast contrast={0.08} />
             <Vignette eskil={false} offset={0.3} darkness={0.7} />
+            <Noise opacity={0.045} />
           </EffectComposer>
         )}
       </Canvas>

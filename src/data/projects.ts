@@ -39,7 +39,7 @@ export const PROJECTS: Project[] = [
     status: 'complete',
     tags: ['Unreal Engine 5', 'C++', 'Blueprints', '2.5D Physics', 'Combat Systems'],
     media: { type: 'youtube', src: 'https://www.youtube.com/embed/tT6s56HwwCU' },
-    links: {},
+    links: { demo: 'https://destroh3.itch.io/broken-peaces' },
   },
   {
     id: 'prime-weaver',

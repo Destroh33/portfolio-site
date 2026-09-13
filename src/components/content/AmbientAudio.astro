@@ -22,6 +22,7 @@
 <script>
   import { audioOnAtom } from '../../stores/audio'
   import { flybySequenceAtom } from '../../stores/flybySequence'
+  import { warpAtom } from '../../stores/sceneFx'
 
   const MUSIC = '/audio/ambient-drone.mp3'
   const WHOOSH = '/audio/whoosh.mp3'
@@ -31,6 +32,7 @@
   const MUSIC_VOL = 0.22
   const WHOOSH_VOL = 0.26 // ~half the old level — the whooshes were too loud
   const BOOM_VOL = 0.6
+  const RUMBLE_VOL = 0.5 // at full warp (brown noise is quiet per unit gain)
   const REVERB_DRIFT = 0.06 // wet send while cruising
   const REVERB_FLYBY = 0.32 // wet send during a cutscene
 
@@ -120,8 +122,46 @@
     whooshBuf = trimSilence(ctx, wbRaw)
     boomBuf = trimSilence(ctx, bbRaw)
     whooshRevBuf = reverseBuffer(ctx, whooshBuf)
+    initRumble(ctx)
     ready = true
   }
+
+  // Warp engine rumble: looped brown noise through a lowpass whose cutoff and
+  // level rise with warpAtom, so hyperspace sounds like pushing the engine.
+  // Silent at cruise.
+  let rumbleGain: GainNode | null = null
+  let rumbleFilter: BiquadFilterNode | null = null
+
+  function initRumble(c: AudioContext) {
+    const len = c.sampleRate * 4
+    const buf = c.createBuffer(1, len, c.sampleRate)
+    const data = buf.getChannelData(0)
+    let last = 0
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02
+      data[i] = last * 3.5
+    }
+    const src = c.createBufferSource()
+    src.buffer = buf
+    src.loop = true
+    rumbleFilter = c.createBiquadFilter()
+    rumbleFilter.type = 'lowpass'
+    rumbleFilter.frequency.value = 180
+    rumbleGain = c.createGain()
+    rumbleGain.gain.value = 0
+    src.connect(rumbleFilter).connect(rumbleGain).connect(c.destination)
+    src.start()
+  }
+
+  let lastWarp = -1
+  warpAtom.subscribe((w) => {
+    if (!ctx || !rumbleGain || !rumbleFilter) return
+    const v = audioOnAtom.get() ? Math.round(w * 50) / 50 : 0
+    if (v === lastWarp) return
+    lastWarp = v
+    rumbleGain.gain.setTargetAtTime(v * RUMBLE_VOL, ctx.currentTime, 0.15)
+    rumbleFilter.frequency.setTargetAtTime(180 + v * 900, ctx.currentTime, 0.15)
+  })
 
   function playSfx(buf: AudioBuffer | null, gain = 1) {
     if (!ctx || !buf || !audioOnAtom.get()) return

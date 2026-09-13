@@ -143,6 +143,13 @@ function tick(now: number) {
   }
 }
 
+// Scroll t of the next stop ahead of `t` that the camera hasn't reached yet
+// (the one being left sits inside its window, so it's skipped). Null past the
+// last stop. Used by the scroll booster to taper before arrivals.
+export function nextStopAfter(t: number): number | null {
+  return triggers.find((x) => x.t > t + TRIGGER_HALF_WINDOW)?.t ?? null
+}
+
 // Eased blend for the camera to consume (imperative read in useFrame).
 export function easedFlybyBlend(): number {
   return easeInOut(flybySequenceAtom.get().blend)

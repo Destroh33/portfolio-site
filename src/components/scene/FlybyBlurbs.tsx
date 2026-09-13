@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { useStore } from '@nanostores/react'
 import { Html } from '@react-three/drei'
 import { planetFramesAtom } from '../../stores/flybyLayout'
@@ -8,6 +8,7 @@ import { openVideoAtom } from '../../stores/videoModal'
 import { FLAGSHIPS, type Project } from '../../data/projects'
 import { PROJECT_TINT } from '../shard'
 import ShardFacets from './ShardFacets'
+import { useCardTilt } from './useCardTilt'
 
 // Phone: distanceFactor for the CENTERED card. Lower = larger on screen. This
 // is a calibration constant — tuned against a real phone-width render so the
@@ -75,6 +76,9 @@ export default function FlybyBlurbs() {
   const seq = useStore(flybySequenceAtom)
   const narrow = useStore(narrowViewportAtom)
   const framesById = Object.fromEntries(frames.map((f) => [f.id, f]))
+  // Only one card is ever mounted at a time, so one tilt ref covers it.
+  const tiltRef = useRef<HTMLDivElement>(null)
+  useCardTilt(tiltRef)
 
   return (
     <>
@@ -118,6 +122,7 @@ export default function FlybyBlurbs() {
               distanceFactor={factor}
               style={{ pointerEvents: blend > 0.5 ? 'auto' : 'none' }}
             >
+            <div ref={tiltRef}>
             <div
               className={[
                 'shard flyby-blurb',
@@ -185,6 +190,7 @@ export default function FlybyBlurbs() {
                   )}
                 </div>
               </div>
+            </div>
             </div>
             </Html>
           </group>

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { WORLD_SCALE } from '../../stores/flybyLayout'
 import { shipSpeedNormAtom } from '../../stores/shipMotion'
+import { warpAtom } from '../../stores/sceneFx'
 
 const COUNT = 380
 const HALF = 1600 * (WORLD_SCALE / 10) // half-extent of the dust cell around the camera
@@ -64,7 +65,8 @@ export default function SpaceDust() {
     }
     if (matRef.current) {
       const speed = shipSpeedNormAtom.get()
-      matRef.current.opacity = 0.06 + 0.5 * speed
+      // Hands off to the warp streaks as hyperspace kicks in.
+      matRef.current.opacity = (0.06 + 0.5 * speed) * (1 - 0.85 * warpAtom.get())
     }
   })
 

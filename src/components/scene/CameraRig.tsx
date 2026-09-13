@@ -7,6 +7,7 @@ import { easedFlybyBlend, activeFlybyFrame } from '../../stores/flybySequence'
 import { introBlendAtom } from '../../stores/introLayout'
 import { shipSpeedAtom, shipSpeedNormAtom, hoverAmountAtom, SPEED_REF } from '../../stores/shipMotion'
 import { reducedMotionAtom } from '../../stores/device'
+import { warpAtom, warpOrigin, stepShake, pointer } from '../../stores/sceneFx'
 
 const CHASE_DISTANCE = 34 * WORLD_SCALE
 const CHASE_HEIGHT = 14 * WORLD_SCALE
@@ -37,6 +38,18 @@ const HOVER_NONE = 0.006 // |speed| above this = fully cruising
 const SPEED_SMOOTH = 0.02 // per-second remaining fraction for speed damping
 const BOB_AMP = 1.2 * WORLD_SCALE // idle bob amplitude (world units)
 const BOB_FREQ = 1.9 // rad/s-ish idle bob frequency
+
+// Hyperspace warp: forward speed (curve-u/s) where the warp look starts and
+// where it's at full strength. A normal scroll glide sits around SPEED_REF;
+// sustained boosted scrolling (stores/scrollBoost.ts) pushes well past it.
+const WARP_START = SPEED_REF * 1.2
+const WARP_FULL = SPEED_REF * 4
+const WARP_FOV = 24 // extra degrees of FOV at full warp
+// Arrival shockwave camera kick (world units at strength 1).
+const SHAKE_AMP = 2.2 * WORLD_SCALE
+// Mouse parallax: max look offset toward the cursor, radians.
+const PARALLAX_YAW = THREE.MathUtils.degToRad(2.2)
+const PARALLAX_PITCH = THREE.MathUtils.degToRad(1.4)
 
 // Intro flyover: camera starts well behind+low relative to the fixed
 // asteroid, then lerps forward all the way to the (by-then-well-ahead)
@@ -83,6 +96,9 @@ export default function CameraRig({ children }: Props) {
   const scratchMat = useRef(new THREE.Matrix4())
   const scratchQuat = useRef(new THREE.Quaternion())
   const scratchUp = useRef(new THREE.Vector3())
+  const scratchShake = useRef(new THREE.Vector3())
+  const scratchEuler = useRef(new THREE.Euler())
+  const smoothWarp = useRef(0)
 
   useFrame(({ camera, clock }, delta) => {
     const curve = pathCurveAtom.get()
@@ -207,10 +223,41 @@ export default function CameraRig({ children }: Props) {
     camera.position.copy(smoothCamPos.current)
     camera.quaternion.copy(smoothCamQuat.current)
 
+    // --- hyperspace warp ---
+    // Forward speed beyond a normal glide (e.g. from the scroll booster) ramps
+    // the warp look in. Asleep during the intro and any cinematic framing.
+    const targetWarp =
+      THREE.MathUtils.clamp((speed - WARP_START) / (WARP_FULL - WARP_START), 0, 1) * introBlend * (1 - activeBlend)
+    // Rises fast, falls slower, so arrivals decelerate out of the tunnel.
+    const warpK = 1 - Math.pow(targetWarp > smoothWarp.current ? 0.05 : 0.2, dt)
+    smoothWarp.current += (targetWarp - smoothWarp.current) * warpK
+    const warp = smoothWarp.current < 0.002 ? 0 : smoothWarp.current
+    warpAtom.set(warp)
+
+    // --- shake + parallax (applied on top of the smoothed pose, never fed
+    // back into it) ---
+    if (!reducedMotionAtom.get()) {
+      const time = clock.getElapsedTime()
+      // Arrival impulse only (a continuous warp rumble read as flicker).
+      const amp = stepShake(dt) * SHAKE_AMP
+      if (amp > 0) {
+        scratchShake.current.set(
+          Math.sin(time * 43.1) + Math.sin(time * 27.7) * 0.6,
+          Math.sin(time * 38.3 + 1.7) + Math.sin(time * 21.9) * 0.6,
+          0,
+        )
+        camera.position.addScaledVector(scratchShake.current.applyQuaternion(camera.quaternion), amp)
+      }
+      // Look slightly toward the cursor (pointer stays 0 on touch devices).
+      scratchEuler.current.set(-pointer.y * PARALLAX_PITCH, -pointer.x * PARALLAX_YAW, 0)
+      camera.quaternion.multiply(scratchQuat.current.setFromEuler(scratchEuler.current))
+    }
+
     // Speed FOV kick: the view widens slightly at full glide (classic speed
-    // cue), easing back to base when slow or during cinematic framing.
+    // cue), and stretches much wider in warp; eases back to base when slow or
+    // during cinematic framing.
     const cam = camera as THREE.PerspectiveCamera
-    const targetFov = 60 + 9 * shipSpeedNormAtom.get() * (1 - activeBlend)
+    const targetFov = 60 + 9 * shipSpeedNormAtom.get() * (1 - activeBlend) + WARP_FOV * warp
     const newFov = cam.fov + (targetFov - cam.fov) * (1 - Math.pow(0.02, dt))
     if (Math.abs(newFov - cam.fov) > 0.01) {
       cam.fov = newFov
@@ -253,6 +300,18 @@ export default function CameraRig({ children }: Props) {
       const shipK = 1 - Math.pow(SHIP_ROT_DAMP, dt)
       smoothShipQuat.current.slerp(targetShipQuat, shipK)
       shipRef.current.quaternion.copy(smoothShipQuat.current)
+    }
+
+    // Ship's screen position for the 2D warp lines, from this frame's final
+    // camera pose (shake, parallax, FOV included). Skipped while it's behind
+    // the camera, which only happens mid-intro when warp is off anyway.
+    if (shipRef.current) {
+      camera.updateMatrixWorld()
+      const ndc = scratchShake.current.copy(shipRef.current.position).project(camera)
+      if (ndc.z < 1) {
+        warpOrigin.x = (ndc.x + 1) / 2
+        warpOrigin.y = (1 - ndc.y) / 2
+      }
     }
   })
 

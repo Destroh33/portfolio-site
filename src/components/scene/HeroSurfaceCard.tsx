@@ -11,6 +11,7 @@ import { SITE, SITE_LINKS, SITE_EMAIL } from '../../data/site'
 import { SKILLS } from '../../data/skills'
 import { HOME_TINT } from '../shard'
 import ShardFacets from './ShardFacets'
+import { useCardTilt } from './useCardTilt'
 
 // Plate eyebrow takes the role's lead ("CS @ UCLA"); the rest sits in the panel.
 const [roleLead, ...roleParts] = SITE.role.split(' · ')
@@ -42,6 +43,8 @@ export default function HeroSurfaceCard() {
   const curve = useStore(pathCurveAtom)
   const narrow = useStore(narrowViewportAtom)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const tiltRef = useRef<HTMLDivElement>(null)
+  useCardTilt(tiltRef, 4)
   const [contactOpen, setContactOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   // Assemble the shard as the loading veil lifts, so the entrance isn't spent
@@ -126,6 +129,7 @@ export default function HeroSurfaceCard() {
         rotation={rotationTuple}
         distanceFactor={narrow ? PHONE_HERO_FACTOR : 240}
       >
+        <div ref={tiltRef}>
         <div
           ref={wrapperRef}
           className={['shard hero-surface-card', narrow && 'is-stacked', entered && 'is-in'].filter(Boolean).join(' ')}
@@ -196,6 +200,7 @@ export default function HeroSurfaceCard() {
         </div>
         </div>
         </div>
+      </div>
       </div>
       </Html>
     </group>

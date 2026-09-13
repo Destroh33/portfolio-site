@@ -1423,3 +1423,68 @@ img.flyby-embed {
     bottom: 1rem;
   }
 }
+
+/* ── Flight feel overlays (content/SceneFx.astro) ── */
+#warp-lines,
+#warp-tunnel,
+#arrival-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Edges close in and go cold as hyperspace builds; driven by warpAtom. */
+#warp-tunnel {
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 70% 62% at var(--ox, 50%) var(--oy, 50%), transparent 55%, rgba(110, 170, 255, 0.1) 78%, transparent 100%),
+    radial-gradient(ellipse 78% 70% at var(--ox, 50%) var(--oy, 50%), transparent 45%, rgba(2, 3, 10, 0.85) 100%);
+}
+
+#arrival-flash {
+  --flash: var(--accent);
+  opacity: 0;
+  background: radial-gradient(ellipse 80% 80% at 35% 50%, color-mix(in srgb, var(--flash) 45%, transparent), transparent 70%);
+  mix-blend-mode: screen;
+}
+
+#arrival-flash.is-firing {
+  animation: arrival-flash 0.9s ease-out;
+}
+
+@keyframes arrival-flash {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Shard facets stutter on like a signal locking as the flyby card assembles. */
+.flyby-blurb.is-in .shard-facets polygon {
+  animation: shard-facet-flicker 0.5s steps(1) calc(0.3s + var(--i) * 40ms) 1 both;
+}
+
+.flyby-blurb.is-in .shard-plate {
+  animation: shard-plate-flicker 0.4s steps(1) 0.3s 1;
+}
+
+@keyframes shard-facet-flicker {
+  0% { opacity: 0; }
+  20% { opacity: 0.9; }
+  40% { opacity: 0.05; }
+  60% { opacity: 0.6; }
+  80% { opacity: 0.15; }
+  100% { opacity: var(--o); }
+}
+
+@keyframes shard-plate-flicker {
+  0% { filter: brightness(1.8); }
+  25% { filter: brightness(0.7); }
+  50% { filter: brightness(1.4); }
+  75% { filter: none; }
+}
+
+#warp-lines {
+  width: 100%;
+  height: 100%;
+}

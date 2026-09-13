@@ -6,6 +6,7 @@ import DebugReadout from '../components/DebugReadout.astro'
 import SceneCanvas from '../components/scene/SceneCanvas'
 import IntroOverlay from '../components/content/IntroOverlay.astro'
 import Letterbox from '../components/content/Letterbox.astro'
+import SceneFx from '../components/content/SceneFx.astro'
 import BeltModal from '../components/content/BeltModal.astro'
 import VideoModal from '../components/content/VideoModal.astro'
 import AmbientAudio from '../components/content/AmbientAudio.astro'
@@ -72,6 +73,7 @@ const projectJsonLd = [...FLAGSHIPS, ...BELT]
   <body>
     <SceneCanvas client:load />
     <IntroOverlay />
+    <SceneFx />
     <Letterbox />
     <BeltModal />
     <VideoModal />
@@ -88,12 +90,16 @@ const projectJsonLd = [...FLAGSHIPS, ...BELT]
       import { initFlybyLayout } from '../stores/flybyLayout'
       import { initFlybySequence } from '../stores/flybySequence'
       import { initIntroLayout } from '../stores/introLayout'
+      import { initSceneFx } from '../stores/sceneFx'
+      import { initScrollBoost } from '../stores/scrollBoost'
 
       initScrollProgress()
       initDeviceStores()
       initFlybyLayout()
       initFlybySequence()
       initIntroLayout()
+      initSceneFx()
+      initScrollBoost()
     </script>
   </body>
 </html>
