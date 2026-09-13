@@ -6,6 +6,13 @@
   --accent: #7dd3fc;
   --accent-warm: #f4b860;
   --border: #23263a;
+  /* Shard UI */
+  --shard-fill: #110e1a;
+  --shard-ink: #f3eefa;
+  --shard-muted: #b9b1c9;
+  --shard-on-tint: #0c0912;
+  --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color-scheme: dark;
 }
 
@@ -19,7 +26,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   line-height: 1.5;
 }
 
@@ -214,23 +221,272 @@ h3 {
   border: 0;
 }
 
+/* ── Shard panels (components/shard.ts) ─────────────────────────────────────
+   Low-poly crystal UI shared by every card: hero, flyby blurbs, credits, belt
+   modal. Structure:
+     .shard            (--tint = the planet's glow color)
+       .shard-plate    solid name plate breaking out of the top-left
+       .shard-panel
+         .shard-bg     clipped silhouette: tint rim, flat fill, facets, sheen
+         .shard-content  NOT clipped, so iframes inside stay clickable in 3D
+   Without .is-in the shard sits collapsed; adding it assembles the panel via
+   transitions (and removing it reverses on fade-out). No blur, no gradients
+   on the body, no rounded corners. */
+.shard {
+  --tint: var(--accent);
+  --shape: polygon(0 22px, 22px 0, 58% 0, 61% 12px, 100% 12px, 100% calc(100% - 34px), calc(100% - 34px) 100%, 0 100%);
+  --shape-closed: polygon(40% 40%, 42% 40%, 50% 40%, 52% 42%, 60% 42%, 60% 58%, 58% 60%, 40% 60%);
+  position: relative;
+  padding-top: 26px;
+  color: var(--shard-ink);
+  font-family: var(--font-body);
+}
+
+.shard-plate {
+  position: absolute;
+  left: -12px;
+  top: 0;
+  z-index: 2;
+  max-width: calc(100% - 8px);
+  padding: 8px 32px 6px 18px;
+  background: var(--tint);
+  color: var(--shard-on-tint);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 10px 100%);
+  transition:
+    transform 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.15s,
+    opacity 0.2s ease 0.15s;
+}
+
+.shard-plate small {
+  display: block;
+  margin-bottom: 3px;
+  font: 700 0.72rem/1 var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.shard-plate h1,
+.shard-plate h2,
+.shard-plate h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.shard-panel {
+  position: relative;
+}
+
+.shard-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--tint);
+  clip-path: var(--shape);
+  transition: clip-path 0.55s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+/* Flat fill inset 2px from the tint layer = the rim. */
+.shard-bg::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--shard-fill);
+  clip-path: var(--shape);
+}
+
+/* Hover sheen: one flat band of tint sweeping across the facets. */
+.shard-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 42%, color-mix(in srgb, var(--tint) 20%, transparent) 50%, transparent 58%)
+    no-repeat 120% 0 / 250% 100%;
+  transition: background-position 0.7s ease;
+}
+
+.shard:hover .shard-bg::after {
+  background-position: -40% 0;
+}
+
+.shard-facets {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.shard-facets polygon {
+  fill: var(--tint);
+  opacity: var(--o);
+  transition: opacity 0.35s ease calc(0.3s + var(--i) * 40ms);
+}
+
+.shard-content {
+  position: relative;
+  padding: 3.4rem 1.9rem 1.9rem;
+  transition:
+    opacity 0.35s ease 0.2s,
+    transform 0.35s ease 0.2s;
+}
+
+.shard:not(.is-in) .shard-bg {
+  clip-path: var(--shape-closed);
+}
+
+.shard:not(.is-in) .shard-plate {
+  opacity: 0;
+  transform: translateX(-40px) skewX(-18deg);
+}
+
+.shard:not(.is-in) .shard-facets polygon {
+  opacity: 0;
+  transition-delay: 0s;
+}
+
+.shard:not(.is-in) .shard-content {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.shard-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.1rem;
+}
+
+.shard-tags li {
+  padding: 0.4rem 0.7rem;
+  background: color-mix(in srgb, var(--tint) 16%, #1a1626);
+  font: 700 0.75rem/1 var(--font-body);
+  color: #efe8f7;
+  transform: skewX(-12deg);
+}
+
+.shard-tags li span {
+  display: inline-block;
+  transform: skewX(12deg);
+}
+
+.shard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* Parallelogram button: the box skews, the label un-skews. Floods with tint
+   on hover/focus. */
+.shard-btn {
+  display: inline-block;
+  padding: 0.55rem 1.2rem 0.45rem;
+  border: 2px solid var(--tint);
+  background: transparent;
+  color: var(--tint);
+  font: 900 1.2rem/1 var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transform: skewX(-14deg);
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+
+.shard-btn > span {
+  display: inline-block;
+  transform: skewX(14deg);
+}
+
+.shard-btn:hover,
+.shard-btn:focus-visible {
+  outline: none;
+  background: var(--tint);
+  color: var(--shard-on-tint);
+  transform: skewX(-14deg) translateY(-2px);
+}
+
+.shard-btn:active {
+  transform: skewX(-14deg) translateY(1px);
+}
+
+.shard-btn.is-primary {
+  background: var(--tint);
+  color: var(--shard-on-tint);
+}
+
+.shard-btn.is-primary:hover,
+.shard-btn.is-primary:focus-visible {
+  border-color: #fff;
+  background: #fff;
+}
+
+/* Media frame: tint rim with two cut corners. The cuts are overlay triangles
+   in the panel fill (not clip-path) so an iframe inside is never clipped. */
+.shard-frame {
+  position: relative;
+  padding: 3px;
+  background: var(--tint);
+  line-height: 0;
+}
+
+.shard-frame::before,
+.shard-frame::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  background: var(--shard-fill);
+  pointer-events: none;
+}
+
+.shard-frame::before {
+  top: 0;
+  right: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.shard-frame::after {
+  bottom: 0;
+  left: 0;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shard *,
+  .shard *::before,
+  .shard *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* World-space flyby panel (drei <Html>, anchored to a planet's 3D position) —
    the only visible project surface; the in-flow .project-article is sr-only.
    Two columns per the storyboard: text/links left, embed right. Centered on
    its anchor point (which sits just outboard of the planet). */
 .flyby-blurb {
-  display: flex;
-  gap: 1.1rem;
   width: 640px;
-  padding: 1.25rem 1.4rem;
-  border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: rgba(13, 16, 32, 0.82);
-  backdrop-filter: blur(6px);
-  box-shadow:
-    0 0 50px rgba(125, 211, 252, 0.35),
-    inset 0 0 24px rgba(125, 211, 252, 0.08);
   transition: opacity 0.2s ease;
+}
+
+.flyby-blurb-body {
+  display: flex;
+  gap: 1.3rem;
+}
+
+.flyby-blurb.has-long-name .shard-plate h3 {
+  font-size: 1.7rem;
 }
 
 /* Phone-width stack: the card is a fixed-size world-space plane, so it can't
@@ -239,8 +495,11 @@ h3 {
    plane so the whole card projects inside a phone screen without the media
    column clipping off the right edge. */
 .flyby-blurb.is-stacked {
-  flex-direction: column;
   width: 340px;
+}
+
+.flyby-blurb.is-stacked .flyby-blurb-body {
+  flex-direction: column;
   gap: 0.9rem;
 }
 
@@ -248,19 +507,23 @@ h3 {
   width: 100%;
 }
 
+.flyby-blurb.is-stacked .shard-plate h3 {
+  font-size: 1.9rem;
+}
+
+.flyby-blurb.is-stacked.has-long-name .shard-plate h3 {
+  font-size: 1.2rem;
+}
+
+.flyby-blurb.is-stacked .shard-content {
+  padding: 3.2rem 1.3rem 1.6rem;
+}
+
 /* Phone: "Watch trailer" button that replaces the inline video iframe (which
    won't render/click inside the 3D-transformed card on mobile). Opens the flat
    screen-space VideoModal. */
 .flyby-embed-btn {
   width: 100%;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: rgba(125, 211, 252, 0.12);
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.95rem;
-  cursor: pointer;
 }
 
 .flyby-blurb-text {
@@ -275,12 +538,16 @@ h3 {
   align-items: center;
 }
 
+.flyby-blurb-embed .shard-frame {
+  width: 100%;
+}
+
 /* Video embeds: fixed responsive 16:9 frame. */
 iframe.flyby-embed {
+  display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 0;
 }
 
 /* Images: show the WHOLE cover art (no crop), fit within the embed column. */
@@ -292,59 +559,27 @@ img.flyby-embed {
   height: auto;
   margin: 0 auto;
   object-fit: contain;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.flyby-blurb h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
 }
 
 .flyby-blurb p {
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.9rem;
   font-size: 0.95rem;
-  color: var(--muted);
-}
-
-.flyby-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 0.8rem;
-}
-
-.flyby-tags li {
-  font-size: 0.75rem;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.1rem 0.5rem;
-}
-
-.flyby-blurb-links {
-  display: flex;
-  gap: 0.7rem;
-}
-
-.flyby-blurb-links a {
-  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--shard-muted);
 }
 
 /* Small always-on name label under each belt asteroid (during the belt
-   cutscene); hovering lights a ring in-scene, clicking opens the belt modal. */
+   cutscene); hovering lights a ring in-scene, clicking opens the belt modal.
+   A mini name plate: white sliver + tint slab, slanted right edge. */
 .asteroid-label {
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  background: rgba(13, 16, 32, 0.85);
-  color: var(--ink);
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 0.4rem 1.4rem 0.3rem 1.1rem;
+  background: linear-gradient(90deg, #fff 0 7px, var(--accent) 7px);
+  color: var(--shard-on-tint);
+  font: 900 1.2rem/1 var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
 
 /* Belt project modal — centered DOM overlay (content/BeltModal.astro). */
@@ -363,70 +598,79 @@ img.flyby-embed {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(92vw, 560px);
-  max-height: 88vh;
-  overflow-y: auto;
-  padding: 1.75rem 2rem;
-  border-radius: 14px;
-  border: 1px solid var(--accent);
-  background: rgba(13, 16, 32, 0.96);
-  box-shadow: 0 0 60px rgba(125, 211, 252, 0.4);
-  animation: belt-modal-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: belt-modal-in 0.3s cubic-bezier(0.2, 1.3, 0.4, 1);
 }
 
 @keyframes belt-modal-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -46%) scale(0.96);
+    transform: translate(-50%, -46%) scale(0.94);
   }
+}
+
+/* Mounts fresh on every open, so the assemble plays as keyframes. */
+.belt-modal .shard-bg {
+  animation: shard-assemble 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+
+.belt-modal .shard-plate {
+  animation: shard-plate-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.12s both;
+}
+
+.belt-modal .shard-facets polygon {
+  animation: shard-facet-in 0.35s ease both;
+  animation-delay: calc(0.25s + var(--i) * 40ms);
+}
+
+@keyframes shard-assemble {
+  from {
+    clip-path: var(--shape-closed);
+  }
+}
+
+@keyframes shard-plate-in {
+  from {
+    opacity: 0;
+    transform: translateX(-40px) skewX(-18deg);
+  }
+}
+
+@keyframes shard-facet-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.belt-modal .shard-content {
+  max-height: calc(88vh - 26px);
+  overflow-y: auto;
 }
 
 .belt-modal-close {
   position: absolute;
-  top: 0.75rem;
-  right: 0.9rem;
+  top: 0.9rem;
+  right: 1.2rem;
   width: 2rem;
   height: 2rem;
   border: none;
   background: transparent;
-  color: var(--muted);
-  font-size: 1.7rem;
+  color: var(--shard-muted);
+  font-size: 1.9rem;
   line-height: 1;
   cursor: pointer;
 }
 
 .belt-modal-close:hover {
-  color: var(--ink);
-}
-
-.belt-modal h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.6rem;
+  color: var(--tint);
 }
 
 .belt-modal p {
-  margin: 0 0 0.8rem;
-  color: var(--muted);
-}
-
-.belt-modal-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 0.9rem;
-}
-
-.belt-modal-tags li {
-  font-size: 0.75rem;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.1rem 0.5rem;
+  margin: 0 0 1rem;
+  color: var(--shard-muted);
 }
 
 .belt-modal-media {
-  margin: 0 0 1rem;
+  margin: 0 0 1.2rem;
   display: flex;
   justify-content: center;
 }
@@ -440,33 +684,18 @@ img.flyby-embed {
   width: auto;
   height: auto;
   object-fit: contain;
-  border: 1px solid var(--border);
-  border-radius: 8px;
 }
 
 /* Video embeds: fixed 16:9 responsive frame. */
+.belt-modal-media .shard-frame:has(iframe) {
+  width: 100%;
+}
+
 .belt-modal-media iframe {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.belt-modal-links {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.belt-modal-links a {
-  padding: 0.45rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  text-decoration: none;
-}
-
-.belt-modal-links a:hover {
-  border-color: var(--accent);
+  border: 0;
 }
 
 /* ── Video overlay (content/VideoModal.astro) — flat screen-space player ──
@@ -489,14 +718,22 @@ img.flyby-embed {
   width: min(94vw, 720px);
 }
 
+/* Flat and over a see-through backdrop, so chamfer with clip-path here
+   instead of the fill-colored corner overlays. */
 .video-modal-frame {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 60px rgba(125, 211, 252, 0.4);
   background: #000;
+}
+
+.video-modal-frame.shard-frame {
+  background: var(--accent);
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
+}
+
+.video-modal-frame.shard-frame::before,
+.video-modal-frame.shard-frame::after {
+  display: none;
 }
 
 .video-modal-frame iframe {
@@ -504,6 +741,7 @@ img.flyby-embed {
   height: 100%;
   border: 0;
   display: block;
+  background: #000;
 }
 
 .video-modal-close {
@@ -524,49 +762,48 @@ img.flyby-embed {
   color: var(--accent);
 }
 
-/* Ambient audio toggle — fixed speaker button, bottom-right. Enlarged and
-   accent-tinted so it's easy to spot as the one persistent control. */
+/* Ambient audio toggle — fixed speaker button, bottom-right. A solid hexagon
+   when on, a dim one when muted, so it reads as the one persistent control. */
 .audio-toggle {
   position: fixed;
   right: 1.3rem;
   bottom: 1.3rem;
   z-index: 6;
   width: 3.4rem;
-  height: 3.4rem;
+  height: 3.9rem;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  border: 2px solid var(--accent);
-  background: rgba(13, 16, 32, 0.82);
-  backdrop-filter: blur(4px);
-  color: var(--accent);
+  padding: 0;
+  border: none;
+  background: var(--accent);
+  color: var(--shard-on-tint);
   cursor: pointer;
-  box-shadow: 0 0 18px rgba(125, 211, 252, 0.35);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   transition:
     color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s,
+    background 0.2s,
     transform 0.15s;
 }
 
 .audio-toggle:hover {
-  color: var(--ink);
-  border-color: var(--accent);
-  box-shadow: 0 0 26px rgba(125, 211, 252, 0.55);
-  transform: scale(1.06);
+  transform: translateY(-2px) scale(1.05);
 }
 
-/* Muted state (audio off): dim it down so "on" (bright, glowing) reads as the
+.audio-toggle:focus-visible {
+  outline: none;
+  background: #fff;
+  color: var(--shard-on-tint);
+}
+
+/* Muted state (audio off): dim it down so "on" (bright, solid) reads as the
    active/default state and muting is the visibly quieter choice. */
 .audio-toggle:not(.is-on) {
+  background: #2a2438;
   color: var(--muted);
-  border-color: var(--border);
-  box-shadow: none;
 }
 
-.audio-toggle.is-on {
-  color: var(--accent);
-  border-color: var(--accent);
+.audio-toggle:not(.is-on):hover {
+  color: var(--ink);
 }
 
 /* Muted (default) → show the slash, hide the waves. On → the reverse. */
@@ -585,88 +822,126 @@ img.flyby-embed {
 /* Hero surface card: rendered inside the 3D scene via drei's <Html transform>,
    anchored just above the home planet's rim (see scene/HeroSurfaceCard.tsx) —
    real world-space geometry, so it gets genuine camera perspective as the
-   intro flyover approaches and passes over it. Square panel styled to match
-   the project flyby blurbs: text + buttons left, portrait right. */
+   intro flyover approaches and passes over it. Name on the plate (left),
+   hexagon portrait breaking out on the right, role set big in the display
+   face beside the portrait, then the skills strip and buttons. */
 .hero-surface-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
   width: 640px;
-  padding: 1.5rem 1.75rem;
-  border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: rgba(13, 16, 32, 0.82);
-  backdrop-filter: blur(6px);
-  box-shadow:
-    0 0 50px rgba(125, 211, 252, 0.35),
-    inset 0 0 24px rgba(125, 211, 252, 0.08);
 }
 
-.hero-card-top {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+.hero-surface-card .shard-plate h1 {
+  font-size: 3.3rem;
 }
 
-/* Phone: narrower card, and the portrait sits above the name/role instead of
-   beside it. Set from narrowViewportAtom in HeroSurfaceCard (the card is a
-   fixed-size world plane, so a viewport @media wouldn't fire on it). */
+.hero-surface-card .shard-content {
+  padding: 4.4rem 1.9rem 1.8rem;
+}
+
+/* Two display-face lines filling the space left of the portrait; a tint
+   slash leads it in, echoing the parallelogram buttons. */
+.hero-card-role {
+  position: relative;
+  max-width: calc(100% - 150px);
+  margin: 0;
+  padding-left: 1.4rem;
+  color: var(--shard-ink);
+  font: 700 2rem/1.02 var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.hero-card-role::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  bottom: 0.1em;
+  width: 6px;
+  background: var(--tint);
+  transform: skewX(-14deg);
+}
+
+.hero-card-portrait {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 22px;
+  width: 132px;
+  height: 148px;
+  padding: 4px;
+  background: var(--tint);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  transition:
+    transform 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) 0.25s,
+    opacity 0.2s ease 0.25s;
+}
+
+.hero-card-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+.hero-surface-card:not(.is-in) .hero-card-portrait {
+  opacity: 0;
+  transform: scale(0.6) rotate(-30deg);
+}
+
+/* Phone: narrower card. The name wraps to two lines beside a smaller
+   portrait, and the role runs full width under both. Set from
+   narrowViewportAtom in HeroSurfaceCard (the card is a fixed-size world
+   plane, so a viewport @media wouldn't fire on it). */
 .hero-surface-card.is-stacked {
   width: 340px;
-  gap: 0.9rem;
 }
 
-.hero-surface-card.is-stacked .hero-card-top {
-  flex-direction: column-reverse;
-  align-items: center;
-  text-align: center;
-  gap: 0.9rem;
+.hero-surface-card.is-stacked .shard-plate {
+  max-width: calc(100% - 100px);
+}
+
+.hero-surface-card.is-stacked .shard-plate h1 {
+  font-size: 2.1rem;
+}
+
+.hero-surface-card.is-stacked .hero-card-portrait {
+  top: 6px;
+  right: 12px;
+  width: 84px;
+  height: 94px;
+  padding: 3px;
+}
+
+.hero-surface-card.is-stacked .shard-content {
+  padding: 5rem 1.3rem 1.6rem;
+}
+
+.hero-surface-card.is-stacked .hero-card-role {
+  max-width: none;
+  font-size: 1.4rem;
 }
 
 .hero-surface-card.is-stacked .hero-card-actions {
   justify-content: center;
 }
 
-.hero-card-text {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.hero-card-text h1 {
-  margin: 0 0 0.35rem;
-  font-size: 2rem;
-  line-height: 1.15;
-}
-
-.hero-card-text p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 1rem;
-}
-
-.hero-card-portrait {
-  width: 130px;
-  height: 130px;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-/* Drifting skill-icon marquee. The track is 2× the skill list; translating it
-   by -50% loops seamlessly. Pauses on hover so a skill can be read. */
+/* Drifting skill-icon marquee, contained inside the panel on a slanted
+   strip. Items carry their own trailing space (no flex gap) so the 2× track
+   translated by -50% loops without a jump. Pauses on hover. */
 .hero-skills {
   overflow: hidden;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 0.5rem 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  margin: 1.3rem 0 1.2rem;
+  background: color-mix(in srgb, var(--tint) 12%, #15111f);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 
 .hero-skills-track {
   display: flex;
-  gap: 1.4rem;
+  align-items: center;
   width: max-content;
   animation: hero-skills-scroll 26s linear infinite;
 }
@@ -682,22 +957,39 @@ img.flyby-embed {
 }
 
 .hero-skill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  color: var(--muted);
-  font-size: 0.85rem;
+  gap: 0.45rem;
+  height: 2.6rem;
+  padding: 0 1.1rem;
+  color: var(--shard-muted);
+  font: 700 1.05rem/1 var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
   transition: color 0.2s;
 }
 
+/* Small tint diamond between skills. */
+.hero-skill::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin-left: 1.1rem;
+  margin-right: -1.1rem;
+  background: var(--tint);
+  opacity: 0.6;
+  transform: rotate(45deg);
+}
+
 .hero-skill:hover {
-  color: var(--ink);
+  color: var(--shard-ink);
 }
 
 .hero-skill img {
-  width: 22px;
-  height: 22px;
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .hero-card-actions {
@@ -707,21 +999,11 @@ img.flyby-embed {
   gap: 0.5rem;
 }
 
-/* Compact the hero action buttons a touch so all 4 links + the contact reveal
-   fit on ONE row within the 640px card. */
-.hero-card-actions .link-btn {
-  padding: 0.42rem 0.7rem;
-  font-size: 0.82rem;
-}
-
-/* Contact CTA looks EXACTLY like the other link buttons (it IS a .link-btn);
-   a <button> won't inherit .link-btn's font-size the way an <a> does, so set
-   it explicitly to match. */
-.hero-cta {
-  font-family: inherit;
-  line-height: normal;
-  cursor: pointer;
-  background: transparent;
+/* Compact the hero buttons so all 4 links + the contact reveal fit on ONE
+   row within the 640px card. */
+.hero-card-actions .shard-btn {
+  padding: 0.5rem 0.85rem 0.4rem;
+  font-size: 1.05rem;
 }
 
 .hero-card-links {
@@ -736,45 +1018,47 @@ img.flyby-embed {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.3rem 0.3rem 0.7rem;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: rgba(125, 211, 252, 0.08);
+  padding: 0.3rem 0.9rem 0.3rem 0.8rem;
+  background: color-mix(in srgb, var(--tint) 16%, #1a1626);
+  border-left: 3px solid var(--tint);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   white-space: nowrap;
 }
 
 .hero-contact-email {
-  color: var(--ink);
+  color: var(--shard-ink);
   text-decoration: none;
   font-size: 0.75rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .hero-copy {
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--accent);
-  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem 0.15rem;
+  border: none;
+  background: var(--tint);
+  color: var(--shard-on-tint);
+  font: 900 0.8rem/1 var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
 .hero-copy:hover {
-  border-color: var(--accent);
+  background: #fff;
 }
 
 .hero-contact-close {
   border: none;
   background: transparent;
-  color: var(--muted);
+  color: var(--shard-muted);
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
 }
 
 .hero-contact-close:hover {
-  color: var(--ink);
+  color: var(--shard-ink);
 }
 
 /* Plain scroll-distance spacer for beats without a visible 2D presentation
@@ -880,24 +1164,24 @@ img.flyby-embed {
 }
 
 #loading-veil .loading-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  width: 18px;
+  height: 16px;
   background: var(--accent);
-  box-shadow: 0 0 24px var(--accent);
-  animation: loading-pulse 1.4s ease-in-out infinite;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  animation: loading-spin 1.4s cubic-bezier(0.6, 0, 0.3, 1) infinite;
 }
 
 #loading-veil .loading-text {
   color: var(--muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+  font: 700 1rem/1 var(--font-display);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-@keyframes loading-pulse {
-  0%, 100% { transform: scale(0.7); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 1; }
+@keyframes loading-spin {
+  0% { transform: rotate(0deg) scale(0.8); }
+  50% { transform: rotate(180deg) scale(1.15); }
+  100% { transform: rotate(360deg) scale(0.8); }
 }
 
 /* ── Journey progress rail (content/ProgressRail.astro) ── */
@@ -916,10 +1200,9 @@ img.flyby-embed {
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 3px;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
+  background: #2a2438;
 }
 
 #progress-rail .rail-fill {
@@ -929,8 +1212,6 @@ img.flyby-embed {
   width: 100%;
   height: 0;
   background: var(--accent);
-  border-radius: 2px;
-  box-shadow: 0 0 8px var(--accent);
 }
 
 #progress-rail .rail-stops {
@@ -947,47 +1228,63 @@ img.flyby-embed {
   transform: translate(-50%, -50%);
 }
 
+/* The button is the hit area; the triangle is its ::before (so the clip
+   doesn't swallow the tooltip child). */
 .rail-dot {
   position: relative;
-  width: 11px;
-  height: 11px;
+  display: block;
+  width: 15px;
+  height: 15px;
   padding: 0;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  background: #04050b;
+  border: none;
+  background: transparent;
   cursor: pointer;
   pointer-events: auto;
-  transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
 
-.rail-dot:hover {
-  transform: scale(1.35);
-  border-color: var(--accent);
+.rail-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #4a4260;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transition: background 0.2s, transform 0.2s;
 }
 
-.rail-dot.is-active {
+.rail-dot:hover::before,
+.rail-dot:focus-visible::before {
+  background: #fff;
+  transform: scale(1.3);
+}
+
+.rail-dot:focus-visible {
+  outline: none;
+}
+
+.rail-dot.is-active::before {
   background: var(--accent);
-  border-color: var(--accent);
 }
 
 .rail-tip {
   position: absolute;
-  right: 150%;
+  right: 170%;
   top: 50%;
   transform: translateY(-50%);
   white-space: nowrap;
-  padding: 0.2rem 0.55rem;
-  border-radius: 5px;
-  background: rgba(13, 16, 32, 0.92);
-  border: 1px solid var(--border);
-  color: var(--ink);
-  font-size: 0.72rem;
+  padding: 0.3rem 0.9rem 0.2rem 0.6rem;
+  background: var(--accent);
+  color: var(--shard-on-tint);
+  font: 900 0.95rem/1 var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.18s;
 }
 
-.rail-dot:hover .rail-tip {
+.rail-dot:hover .rail-tip,
+.rail-dot:focus-visible .rail-tip {
   opacity: 1;
 }
 
@@ -1007,8 +1304,8 @@ img.flyby-embed {
   align-items: center;
   gap: 0.35rem;
   color: var(--muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font: 700 0.95rem/1 var(--font-display);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   opacity: 0;
   pointer-events: none;
@@ -1032,30 +1329,27 @@ img.flyby-embed {
 /* ── Credits transmission panel (scene/SpaceStation.tsx via <Html>) ── */
 .credits-panel {
   width: 300px;
-  padding: 1.25rem 1.4rem;
-  border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: rgba(13, 16, 32, 0.9);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 0 44px rgba(125, 211, 252, 0.32);
   transition: opacity 0.25s ease;
 }
 
-.credits-panel h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.3rem;
+.credits-panel .shard-plate h2 {
+  font-size: 2.1rem;
+}
+
+.credits-panel .shard-content {
+  padding: 3.3rem 1.4rem 1.8rem;
 }
 
 .credits-group {
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.9rem;
 }
 
 .credits-group h3 {
-  margin: 0 0 0.3rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.35rem;
+  font: 900 1rem/1 var(--font-display);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--tint);
 }
 
 .credits-group ul {
@@ -1070,38 +1364,29 @@ img.flyby-embed {
 }
 
 .credits-group li a {
-  color: var(--ink);
+  color: var(--shard-ink);
+  font-weight: 700;
   text-decoration: none;
 }
 
 .credits-group li a:hover {
-  color: var(--accent);
+  color: var(--tint);
 }
 
 .credits-group li em {
-  color: var(--muted);
+  color: var(--shard-muted);
   font-style: normal;
   font-size: 0.76rem;
 }
 
 .credits-closing {
-  margin: 0.6rem 0 0.7rem;
+  margin: 0.6rem 0 1rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--shard-muted);
 }
 
-.credits-repo {
-  display: inline-block;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--ink);
-  text-decoration: none;
-  font-size: 0.82rem;
-}
-
-.credits-repo:hover {
-  border-color: var(--accent);
+.credits-panel .shard-btn {
+  font-size: 1rem;
 }
 
 /* ── Small-screen adjustments (phones, portrait tablets) ──────────────────
@@ -1117,23 +1402,19 @@ img.flyby-embed {
   }
 
   /* Belt modal: width is already responsive (min(92vw, 560px)); tighten the
-     inner padding and type so it doesn't feel cramped on a narrow phone. */
-  .belt-modal {
-    padding: 1.4rem 1.25rem;
+     inner padding and plate type so it doesn't feel cramped on a narrow phone. */
+  .belt-modal .shard-content {
+    padding: 3rem 1.25rem 1.5rem;
   }
 
-  .belt-modal h2 {
-    font-size: 1.35rem;
+  .belt-modal .shard-plate h2 {
+    font-size: 1.9rem;
   }
 
   .belt-modal-media img {
     /* Cap relative to viewport height so tall art can't push the links
        below the fold on a short phone screen. */
     max-height: min(340px, 40vh);
-  }
-
-  .belt-modal-links {
-    flex-wrap: wrap;
   }
 
   /* Keep the (now larger) audio toggle clear of the screen edge on phones. */

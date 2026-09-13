@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@nanostores/react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
@@ -9,6 +9,12 @@ import { INTRO_PLANET_RADIUS } from './IntroPlanet'
 import { introBlendAtom } from '../../stores/introLayout'
 import { SITE, SITE_LINKS, SITE_EMAIL } from '../../data/site'
 import { SKILLS } from '../../data/skills'
+import { HOME_TINT } from '../shard'
+import ShardFacets from './ShardFacets'
+
+// Plate eyebrow takes the role's lead ("CS @ UCLA"); the rest sits in the panel.
+const [roleLead, ...roleParts] = SITE.role.split(' · ')
+const roleRest = roleParts.join(' · ')
 
 // These must mirror CameraRig's intro constants so the card is oriented to
 // face the actual intro-start camera position (frontal at blend=0).
@@ -38,6 +44,24 @@ export default function HeroSurfaceCard() {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [contactOpen, setContactOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  // Assemble the shard as the loading veil lifts, so the entrance isn't spent
+  // behind black. Watches the veil itself (hidden on load OR its 5s cap)
+  // rather than the load event, which a slow asset can hold back.
+  const [entered, setEntered] = useState(false)
+
+  useEffect(() => {
+    let timeout = 0
+    const poll = window.setInterval(() => {
+      const veil = document.getElementById('loading-veil')
+      if (veil && !veil.classList.contains('is-hidden')) return
+      window.clearInterval(poll)
+      timeout = window.setTimeout(() => setEntered(true), 300)
+    }, 100)
+    return () => {
+      window.clearInterval(poll)
+      window.clearTimeout(timeout)
+    }
+  }, [])
 
   useFrame(() => {
     if (wrapperRef.current) {
@@ -102,14 +126,25 @@ export default function HeroSurfaceCard() {
         rotation={rotationTuple}
         distanceFactor={narrow ? PHONE_HERO_FACTOR : 240}
       >
-        <div ref={wrapperRef} className={narrow ? 'hero-surface-card is-stacked' : 'hero-surface-card'}>
-        <div className="hero-card-top">
-          <div className="hero-card-text">
-            <h1>{SITE.name}</h1>
-            <p>{SITE.role}</p>
-          </div>
-          <img className="hero-card-portrait" src={SITE.portrait} alt={`Portrait of ${SITE.name}`} />
+        <div
+          ref={wrapperRef}
+          className={['shard hero-surface-card', narrow && 'is-stacked', entered && 'is-in'].filter(Boolean).join(' ')}
+          style={{ '--tint': HOME_TINT } as CSSProperties}
+        >
+        <div className="shard-plate">
+          <small>{roleLead}</small>
+          <h1>{SITE.name}</h1>
         </div>
+        {/* Breaks out of the panel's top-right, mirroring the name plate. */}
+        <div className="hero-card-portrait">
+          <img src={SITE.portrait} alt={`Portrait of ${SITE.name}`} />
+        </div>
+        <div className="shard-panel">
+        <div className="shard-bg" aria-hidden="true">
+          <ShardFacets seed={3} />
+        </div>
+        <div className="shard-content">
+        <p className="hero-card-role">{roleRest}</p>
 
         {/* Drifting skill-icon strip — the row scrolls slowly; each icon shows
             its name on hover. Duplicated once for a seamless marquee loop. */}
@@ -129,8 +164,8 @@ export default function HeroSurfaceCard() {
             slot, no new line). */}
         <div className="hero-card-actions">
           {SITE_LINKS.map((link) => (
-            <a key={link.label} className="link-btn" href={link.url} target="_blank" rel="noreferrer">
-              {link.label}
+            <a key={link.label} className="shard-btn" href={link.url} target="_blank" rel="noreferrer">
+              <span>{link.label}</span>
             </a>
           ))}
           {contactOpen ? (
@@ -154,10 +189,12 @@ export default function HeroSurfaceCard() {
               </button>
             </span>
           ) : (
-            <button type="button" className="link-btn hero-cta" onClick={() => setContactOpen(true)}>
-              Get in touch
+            <button type="button" className="shard-btn is-primary" onClick={() => setContactOpen(true)}>
+              <span>Get in touch</span>
             </button>
           )}
+        </div>
+        </div>
         </div>
       </div>
       </Html>

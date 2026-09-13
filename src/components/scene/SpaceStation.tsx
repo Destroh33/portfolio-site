@@ -8,6 +8,7 @@ import { narrowViewportAtom } from '../../stores/device'
 import { scrollProgressAtom } from '../../stores/scrollProgress'
 import { PATH_POINTS } from '../../stores/flybyLayout'
 import { BUILT_WITH, ATTRIBUTIONS, CREDITS_REPO, CREDITS_CLOSING } from '../../data/credits'
+import ShardFacets from './ShardFacets'
 
 const S = WORLD_SCALE
 
@@ -66,6 +67,7 @@ export default function SpaceStation() {
       const vis = scrollVis * nearVis
       panelRef.current.style.opacity = String(vis)
       panelRef.current.style.pointerEvents = vis > 0.6 ? 'auto' : 'none'
+      panelRef.current.classList.toggle('is-in', vis > 0.5)
     }
   })
 
@@ -111,8 +113,15 @@ export default function SpaceStation() {
       {/* Credits transmission panel — to the RIGHT of the path (offset from the
           station across to the other side). */}
       <Html position={panelOffset} center distanceFactor={(narrow ? 216 : 240) * S} occlude={false}>
-        <div ref={panelRef} className="credits-panel" style={{ opacity: 0 }}>
-          <h2>Credits</h2>
+        <div ref={panelRef} className="shard credits-panel" style={{ opacity: 0 }}>
+          <div className="shard-plate">
+            <h2>Credits</h2>
+          </div>
+          <div className="shard-panel">
+          <div className="shard-bg" aria-hidden="true">
+            <ShardFacets seed={11} />
+          </div>
+          <div className="shard-content">
           <div className="credits-group">
             <h3>Built with</h3>
             <ul>
@@ -148,9 +157,11 @@ export default function SpaceStation() {
             </ul>
           </div>
           <p className="credits-closing">{CREDITS_CLOSING}</p>
-          <a className="credits-repo" href={CREDITS_REPO} target="_blank" rel="noreferrer">
-            Source on GitHub
+          <a className="shard-btn" href={CREDITS_REPO} target="_blank" rel="noreferrer">
+            <span>Source on GitHub</span>
           </a>
+          </div>
+          </div>
         </div>
       </Html>
     </group>

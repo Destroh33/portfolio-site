@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useStore } from '@nanostores/react'
 import { Html } from '@react-three/drei'
 import { planetFramesAtom } from '../../stores/flybyLayout'
@@ -5,6 +6,8 @@ import { flybySequenceAtom } from '../../stores/flybySequence'
 import { narrowViewportAtom } from '../../stores/device'
 import { openVideoAtom } from '../../stores/videoModal'
 import { FLAGSHIPS, type Project } from '../../data/projects'
+import { PROJECT_TINT } from '../shard'
+import ShardFacets from './ShardFacets'
 
 // Phone: distanceFactor for the CENTERED card. Lower = larger on screen. This
 // is a calibration constant — tuned against a real phone-width render so the
@@ -33,26 +36,34 @@ function Embed({ project, narrow }: { project: Project; narrow: boolean }) {
     return (
       <button
         type="button"
-        className="flyby-embed-btn"
+        className="shard-btn flyby-embed-btn"
         onClick={() => openVideoAtom.set({ src: media.src, title: `${project.name} trailer` })}
       >
-        ▶ Watch trailer
+        <span>▶ Watch trailer</span>
       </button>
     )
   }
 
+  // Frame corners are cut by overlay triangles rather than clip-path, so the
+  // iframe never sits inside a clipped ancestor (keeps it clickable in 3D).
   if (media.type === 'image') {
-    return <img className="flyby-embed" src={media.src} alt={`${project.name} screenshot`} loading="lazy" />
+    return (
+      <div className="shard-frame">
+        <img className="flyby-embed" src={media.src} alt={`${project.name} screenshot`} loading="lazy" />
+      </div>
+    )
   }
   return (
-    <iframe
-      className="flyby-embed"
-      src={media.src}
-      title={`${project.name} embed`}
-      loading="lazy"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-    />
+    <div className="shard-frame">
+      <iframe
+        className="flyby-embed"
+        src={media.src}
+        title={`${project.name} embed`}
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
   )
 }
 
@@ -108,49 +119,72 @@ export default function FlybyBlurbs() {
               style={{ pointerEvents: blend > 0.5 ? 'auto' : 'none' }}
             >
             <div
-              className={narrow ? 'flyby-blurb is-stacked' : 'flyby-blurb'}
-              style={{
-                opacity: blend,
-                // Slides in from the outboard side as the camera settles.
-                // Centered on phone, so no lateral slide there.
-                transform: narrow ? undefined : `translateX(${(1 - blend) * 70}px)`,
-              }}
+              className={[
+                'shard flyby-blurb',
+                narrow && 'is-stacked',
+                // Past halfway the shard assembles (CSS transitions); dropping
+                // back below reverses it on fly-out.
+                blend > 0.5 && 'is-in',
+                project.name.length > 20 && 'has-long-name',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              style={
+                {
+                  '--tint': PROJECT_TINT[project.id] ?? '#7dd3fc',
+                  opacity: blend,
+                  // Slides in from the outboard side as the camera settles.
+                  // Centered on phone, so no lateral slide there.
+                  transform: narrow ? undefined : `translateX(${(1 - blend) * 70}px)`,
+                } as CSSProperties
+              }
             >
-              <div className="flyby-blurb-text">
+              <div className="shard-plate">
                 <h3>{project.name}</h3>
-                <p>{project.description}</p>
-                {project.tags.length > 0 && (
-                  <ul className="flyby-tags">
-                    {project.tags.map((tag) => (
-                      <li key={tag}>{tag}</li>
-                    ))}
-                  </ul>
-                )}
-                <div className="flyby-blurb-links">
-                  {project.links.github && (
-                    <a href={project.links.github} target="_blank" rel="noreferrer">
-                      GitHub
-                    </a>
-                  )}
-                  {project.links.demo && (
-                    <a href={project.links.demo} target="_blank" rel="noreferrer">
-                      Play
-                    </a>
-                  )}
-                  {project.links.slides && (
-                    <a href={project.links.slides} target="_blank" rel="noreferrer">
-                      Slides
-                    </a>
+              </div>
+              <div className="shard-panel">
+                <div className="shard-bg" aria-hidden="true">
+                  <ShardFacets seed={project.order} />
+                </div>
+                <div className="shard-content flyby-blurb-body">
+                  <div className="flyby-blurb-text">
+                    <p>{project.description}</p>
+                    {project.tags.length > 0 && (
+                      <ul className="shard-tags">
+                        {project.tags.map((tag) => (
+                          <li key={tag}>
+                            <span>{tag}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="shard-actions">
+                      {project.links.github && (
+                        <a className="shard-btn" href={project.links.github} target="_blank" rel="noreferrer">
+                          <span>GitHub</span>
+                        </a>
+                      )}
+                      {project.links.demo && (
+                        <a className="shard-btn" href={project.links.demo} target="_blank" rel="noreferrer">
+                          <span>Play</span>
+                        </a>
+                      )}
+                      {project.links.slides && (
+                        <a className="shard-btn" href={project.links.slides} target="_blank" rel="noreferrer">
+                          <span>Slides</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  {/* Skip the embed slot entirely for the one case that renders
+                      nothing (phone + image), so there's no empty box. */}
+                  {project.media && !(narrow && project.media.type === 'image') && (
+                    <div className="flyby-blurb-embed">
+                      <Embed project={project} narrow={narrow} />
+                    </div>
                   )}
                 </div>
               </div>
-              {/* Skip the embed slot entirely for the one case that renders
-                  nothing (phone + image), so there's no empty box. */}
-              {project.media && !(narrow && project.media.type === 'image') && (
-                <div className="flyby-blurb-embed">
-                  <Embed project={project} narrow={narrow} />
-                </div>
-              )}
             </div>
             </Html>
           </group>
