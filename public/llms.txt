@@ -8,7 +8,7 @@ I'm a CS student at UCLA who likes to make games and other weird interactive sof
 - GitHub: https://github.com/Destroh33
 - LinkedIn: https://www.linkedin.com/in/krishna-tholudur-5b90a5330/
 - itch.io: https://destroh3.itch.io/
-- Resume: /images/KrishnaTholudurResume.pdf
+- Resume: /images/Krishna_Tholudur_Resume.pdf
 
 ## Projects
 - Broken Peaces — 2.5D combat platformer in Unreal Engine 5; fast melee/ranged combat across three chapters. Won 1st of 18 teams at UCLA's Fiat Ludum Game Jam 2026.

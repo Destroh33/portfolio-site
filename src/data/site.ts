@@ -13,7 +13,7 @@ export interface SiteLink {
 }
 
 export const SITE_LINKS: SiteLink[] = [
-  { label: 'Resume', url: '/images/KrishnaTholudurResume.pdf' },
+  { label: 'Resume', url: '/images/Krishna_Tholudur_Resume.pdf' },
   { label: 'GitHub', url: 'https://github.com/Destroh33' },
   { label: 'itch.io', url: 'https://destroh3.itch.io/' },
   { label: 'LinkedIn', url: 'https://www.linkedin.com/in/krishna-tholudur-5b90a5330/' },
