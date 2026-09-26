@@ -1,12 +1,14 @@
 {/* Fade-from-black on entry: a full-screen veil with a soft pulsing dot that
-   covers the beat while WebGL initializes + the GLTFs stream in, then fades
-   out so the scene reveals intentionally instead of popping in half-loaded. */}
+   covers the beat while WebGL initializes, then fades out so the scene reveals
+   intentionally instead of popping in half-loaded. */}
 <div id="loading-veil">
   <div class="loading-dot" aria-hidden="true"></div>
   <span class="loading-text">Entering orbit…</span>
 </div>
 
 <script>
+  import { sceneReadyAtom } from '../../stores/sceneReady'
+
   const veil = document.getElementById('loading-veil')
   if (veil) {
     let done = false
@@ -17,9 +19,27 @@
       // remove from the tree after the fade so it can't intercept anything
       window.setTimeout(() => veil.remove(), 900)
     }
-    // Reveal shortly after load (WebGL + first frames), with a hard cap so a
-    // slow asset never traps the user behind the veil.
-    window.addEventListener('load', () => window.setTimeout(hide, 700))
-    window.setTimeout(hide, 5000)
+
+    // Lift as soon as the canvas is actually drawing frames (see
+    // stores/sceneReady.ts). This used to wait on window.load, which waits for
+    // every subresource on the page — nothing to do with whether the scene is
+    // worth looking at, and on a slow connection it meant the veil sat at its
+    // timeout cap with the page's real content finished and hidden behind it.
+    // The small delay is cosmetic: it lets the first frames settle so the
+    // reveal isn't a hard cut.
+    let unsub: (() => void) | undefined
+    unsub = sceneReadyAtom.subscribe((ready) => {
+      if (!ready) return
+      // subscribe() fires synchronously with the current value, so unsub may
+      // not be assigned yet on that first call — hence the optional call.
+      unsub?.()
+      window.setTimeout(hide, 120)
+    })
+
+    // Hard cap so a device that never gets a WebGL context (or fails to render
+    // at all) can't be trapped behind the veil. Short on purpose: the page's
+    // content is server-rendered and already complete underneath, so showing it
+    // a beat early beats holding a black screen in front of a visitor.
+    window.setTimeout(hide, 1500)
   }
 </script>

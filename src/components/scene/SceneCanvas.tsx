@@ -1,5 +1,5 @@
-import { Suspense } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Suspense, useRef } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { useStore } from '@nanostores/react'
 import { EffectComposer, Bloom, Vignette, Noise, HueSaturation, BrightnessContrast } from '@react-three/postprocessing'
 import * as THREE from 'three'
@@ -16,9 +16,26 @@ import FlybyBlurbs from './FlybyBlurbs'
 import VolumetricNebula from './VolumetricNebula'
 import BackgroundStars from './BackgroundStars'
 import { perfTierAtom } from '../../stores/device'
+import { sceneReadyAtom } from '../../stores/sceneReady'
 // Note: the old camera-following <Starfield> was removed — at 10x world scale
 // its tiny-radius points formed a "ghost" clump that dragged with the camera.
 // BackgroundStars (fixed deep field) is the only star layer now.
+
+// Flips sceneReadyAtom once the canvas has actually rendered a few frames, so
+// LoadingVeil can lift on "the scene is drawing" rather than on window.load.
+// Counting past the first frame matters: frame 1 is where three compiles its
+// shaders and uploads geometry, which on a weak GPU is the longest frame of the
+// session — revealing on it would show a stalled image. A handful of frames in,
+// the loop is genuinely running.
+function SceneReadySignal() {
+  const frames = useRef(0)
+  useFrame(() => {
+    if (frames.current > 3) return
+    frames.current += 1
+    if (frames.current > 3) sceneReadyAtom.set(true)
+  })
+  return null
+}
 
 // Ship in its chase rig. (The engine trail was removed — the thruster flame
 // alone carries the exhaust look; Ship's thrusterAnchor prop remains unused
@@ -53,6 +70,7 @@ export default function SceneCanvas() {
         dpr={[1, 2]}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: false }}
       >
+        <SceneReadySignal />
         <color attach="background" args={['#04050b']} />
 
         {/* Lighting rig: dim ambient fill + a warm "sun" key light from one

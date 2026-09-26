@@ -7,9 +7,14 @@ import { SITE } from '../../data/site'
    scroll, and has its own real copy of the link buttons — not duplicated here
    to avoid triplicating interactive links across the page). This section
    still needs to exist in normal flow as the "hero" waypoint's scroll anchor
-   for the camera path. */}
+   for the camera path.
+
+   No portrait <img> here on purpose: this section is clipped to 1x1px, so an
+   image in it is never seen, conveys nothing to a screen reader, and still
+   downloads at full priority — the old one was a 4MB PNG that alone gated
+   window.load (and therefore the loading veil). If a portrait is ever wanted
+   for real, it belongs in a visible slot or in an og:image tag, sized for it. */}
 <section id="hero" class="sr-only">
   <h1>{SITE.name}</h1>
   <p>{SITE.role}</p>
-  <img src={SITE.portrait} alt={`Portrait of ${SITE.name}`} />
 </section>
