@@ -4,6 +4,7 @@ export type ProjectStatus = 'active' | 'complete' | 'research' | 'placeholder'
 export interface ProjectMedia {
   type: 'youtube' | 'slides' | 'image'
   src: string
+  label?: string
 }
 
 export interface ProjectLinks {
@@ -74,17 +75,16 @@ export const PROJECTS: Project[] = [
     },
   },
   {
-    id: 'vr-lab',
-    name: 'Cross Movements Disorder Lab — UCLA',
+    id: 'mkultra',
+    name: 'MKUltra',
     tier: 'flagship',
     order: 3,
-    icon: 'vr-lab',
+    icon: 'mkultra',
     description:
-      "Building immersive VR environments in Unreal Engine and Unity for clinical research on Parkinson's disease, supporting studies on 'freezing of gait' and patient motor responses to environmental stimuli. Includes MetaHuman AI navigation configuration and a custom Unity C# runtime scene configuration system.",
-    isPlaceholder: true,
-    status: 'research',
-    tags: ['Unreal Engine 5', 'Unity', 'C#', 'Unity XR Interaction Toolkit', 'MetaHuman AI'],
-    media: null,
+      'An in-development co-op roguelike FPS with a drug-induced spy thriller feel, built in Unity with a 10-person team and networked with FishNet. Features a server-authoritative enemy framework, a modular weapon modification system, and spring-driven animated recoil.',
+    status: 'active',
+    tags: ['Unity', 'C#', 'FishNet Networking', 'Enemy AI', 'Weapon Systems'],
+    media: { type: 'youtube', src: 'https://www.youtube.com/embed/P9XV2lvv8Is?start=1093', label: 'playtest' },
     links: {},
   },
   {

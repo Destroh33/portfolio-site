@@ -20,7 +20,7 @@ export interface PlanetFrame {
 }
 
 // Camera path order follows the user's hand-drawn floorplan (top-down):
-//   Start(asteroid) -> BP -> PW -> [nebula] -> MotoMania -> Lab -> AI ->
+//   Start(asteroid) -> BP -> PW -> [nebula] -> MKUltra -> MotoMania -> AI ->
 //   [asteroid field] -> back toward Start (a closed-ish loop).
 // hero == the Start asteroid; about is a short beat right after launch; the
 // five flagships are placed at their drawn map spots; belt == the asteroid
@@ -43,7 +43,7 @@ const PATH_POINTS_RAW: Record<string, [number, number, number]> = {
   'broken-peaces': [-40, -60, -260], // BP, upper-center, a dip
   'prime-weaver': [120, -200, 560], // PW, bottom-center, deep drop
   't-nebula': [640, -120, 640], // swoop out bottom-right THROUGH the nebula
-  'vr-lab': [820, 220, -420], // Lab (now 3rd stop), top-right
+  mkultra: [820, 220, -420], // MKUltra (3rd stop), top-right
   't-lab-spiral': [560, 60, -120], // curl inward toward the next stop
   motomania: [700, -20, -180], // MotoMania (now 4th stop), center-right
   belt: [980, 40, 120], // asteroid field, right side on the return leg
@@ -64,7 +64,7 @@ const PATH_ORDER = [
   'broken-peaces',
   'prime-weaver',
   't-nebula',
-  'vr-lab',
+  'mkultra',
   't-lab-spiral',
   'motomania',
   'ai-guide',

@@ -3,7 +3,7 @@ import * as THREE from 'three'
 export interface PlanetStyle {
   base: string
   accent: string
-  mode: number // 0 gas-bands, 1 rocky, 2 lava, 3 icy, 4 data-grid, 5 volcanic, 6 ley-lines, 7 speed-streaks, 8 neural, 9 city-map
+  mode: number // 0 gas-bands, 1 rocky, 2 lava, 3 icy, 4 data-grid, 5 volcanic, 6 ley-lines, 7 speed-streaks, 8 neural, 9 city-map, 10 night-ops
   glow: string
 }
 
@@ -22,8 +22,10 @@ export function makePlanetMaterial(style: PlanetStyle): THREE.ShaderMaterial {
     vertexShader: /* glsl */ `
       varying vec3 vPos;
       varying vec3 vNormalW;
+      varying vec3 vWorldPos;
       void main() {
         vPos = position;
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
         vNormalW = normalize(mat3(modelMatrix) * normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
@@ -31,6 +33,7 @@ export function makePlanetMaterial(style: PlanetStyle): THREE.ShaderMaterial {
     fragmentShader: /* glsl */ `
       varying vec3 vPos;
       varying vec3 vNormalW;
+      varying vec3 vWorldPos;
       uniform float uTime;
       uniform vec3 uBase;
       uniform vec3 uAccent;
@@ -77,6 +80,7 @@ export function makePlanetMaterial(style: PlanetStyle): THREE.ShaderMaterial {
         return vec2(f1, f2 - f1);
       }
       float voroEdge(vec3 x){ return voro2(x).y; }
+      vec3 trip(float t){ return 0.5 + 0.5*cos(6.2831*(t + vec3(0.0, 0.33, 0.67))); }
 
       void main(){
         vec3 n = normalize(vNormalW);
@@ -155,12 +159,12 @@ export function makePlanetMaterial(style: PlanetStyle): THREE.ShaderMaterial {
           col = mix(uBase, uAccent, s*0.8);
           emissive = uAccent * smoothstep(0.74, 0.9, streak) * 0.7;
         } else if(uMode < 8.5){
-          // VR Lab: plain deep-ocean-blue globe (the glowing node NETWORK and
+          // Neural: plain deep globe (the glowing node NETWORK and
           // travelling signals live as real 3D geometry in PlanetDetail, like
           // the reference image — not baked into the surface).
           float land = smoothstep(0.55, 0.6, fbm(p*2.8));
           col = mix(uBase, uBase*1.5 + vec3(0.0,0.05,0.1), land);
-        } else {
+        } else if(uMode < 9.5){
           // AI Guide: a mellow map/atlas planet — a soft slate-teal surface
           // with a bright, ever-present GRID of "roads" over the whole globe,
           // gentle landmass tint, and calm glowing city clusters. The grid is
@@ -182,6 +186,37 @@ export function makePlanetMaterial(style: PlanetStyle): THREE.ShaderMaterial {
           float cityMask = smoothstep(0.5, 0.82, fbm(p*2.2 + 3.0));
           float twinkle = 0.8 + 0.2*sin(uTime*1.4 + dot(floor(g),vec2(1.7,2.3)));
           emissive = uAccent * (streets*0.6 + minor*0.25) + uAccent*cityMask*0.8*twinkle;
+        } else {
+          // MKUltra: night-ops globe. Matte black terrain drawn as topo
+          // contours under a night-vision tint, a radar sweep circling the
+          // globe that lights the contours as it passes, blinking red target
+          // markers, and a slow psychedelic hue warp creeping in at the rim.
+          float h = fbm(p*2.2);
+          float c = fract(h*16.0);
+          float contour = smoothstep(0.08, 0.0, min(c, 1.0 - c));
+          float cm = fract(h*16.0/5.0);
+          float major = smoothstep(0.025, 0.0, min(cm, 1.0 - cm));
+          float lon = atan(p.z, p.x);
+          float lat = asin(clamp(p.y, -1.0, 1.0));
+          vec2 gg = abs(fract(vec2(lon, lat) * 3.82) - 0.5);
+          float grid = smoothstep(0.012, 0.0, min(gg.x, gg.y));
+          float sw = fract(lon/6.2831 - uTime*0.05);
+          float trail = smoothstep(0.35, 0.0, sw);
+          float edge = smoothstep(0.012, 0.0, sw);
+          float scan = 0.85 + 0.15*sin(p.y*240.0 - uTime*3.0);
+          col = uBase * (0.7 + 0.6*h) * scan;
+          emissive = uAccent * ((contour*0.1 + major*0.25 + grid*0.08) * (1.0 + 5.0*trail) + edge*0.5) * scan;
+          for(int k=0;k<5;k++){
+            float fk = float(k);
+            vec3 md = normalize(vec3(sin(fk*2.39 + 0.4), cos(fk*1.7)*0.6, cos(fk*2.39 + 0.4)));
+            float d = acos(clamp(dot(p, md), -1.0, 1.0));
+            float ring = smoothstep(0.008, 0.0, abs(d - 0.06));
+            float dot0 = smoothstep(0.018, 0.01, d);
+            float blink = step(0.45, fract(uTime*0.7 + fk*0.37));
+            emissive += vec3(1.0, 0.12, 0.18) * (ring + dot0) * blink * 0.9;
+          }
+          float rim = 1.0 - clamp(dot(n, normalize(cameraPosition - vWorldPos)), 0.0, 1.0);
+          emissive += trip(rim*1.5 + h*1.2 + uTime*0.06) * pow(rim, 3.0) * 0.35;
         }
 
         // simple wrap lighting; emissive glows regardless of the light side.

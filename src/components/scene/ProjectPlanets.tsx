@@ -9,7 +9,7 @@ const STYLES: Record<string, PlanetStyle> = {
   'broken-peaces': { base: '#35322d', accent: '#ff7a1a', mode: 5, glow: '#ff8c42' }, // volcanic: dark rock + lava fractures
   'prime-weaver': { base: '#1a1032', accent: '#ff4ad0', mode: 6, glow: '#c86aff' }, // arcane ley-lines, flowing energy
   motomania: { base: '#2a1408', accent: '#ff9a3c', mode: 7, glow: '#ff8a2a' }, // hot racing world, orange speed streaks
-  'vr-lab': { base: '#0c1c26', accent: '#4de8ff', mode: 8, glow: '#4de8ff' }, // pulsing neural-node network
+  mkultra: { base: '#0b0f0c', accent: '#5dff8a', mode: 10, glow: '#3dff7a' }, // night-ops globe: topo contours, radar sweep, red target markers
   'ai-guide': { base: '#243a44', accent: '#8fe6d0', mode: 9, glow: '#7fd8f0' }, // mellow map/atlas, teal grid
 }
 

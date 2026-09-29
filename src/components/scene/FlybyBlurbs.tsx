@@ -38,9 +38,9 @@ function Embed({ project, narrow }: { project: Project; narrow: boolean }) {
       <button
         type="button"
         className="shard-btn flyby-embed-btn"
-        onClick={() => openVideoAtom.set({ src: media.src, title: `${project.name} trailer` })}
+        onClick={() => openVideoAtom.set({ src: media.src, title: `${project.name} ${media.label ?? 'trailer'}` })}
       >
-        <span>▶ Watch trailer</span>
+        <span>▶ Watch {media.label ?? 'trailer'}</span>
       </button>
     )
   }

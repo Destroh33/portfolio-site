@@ -890,6 +890,172 @@ img.flyby-embed {
   transform: scale(0.6) rotate(-30deg);
 }
 
+/* Comic-book burst breaking out of the hero card's right edge. Its long
+   left spike is the speech tail, jabbing back into the card. Pops in after
+   the shard assembles, then idles with a periodic POW jiggle + text flash. */
+.itch-burst {
+  --burst-ink: #0c0912;
+  --burst-fill: #ffe14d;
+  --burst-hot: #ff2e88;
+  --burst: polygon(0% 60%, 22% 45%, 14% 22%, 34% 27%, 40% 4%, 54% 20%, 68% 0%, 74% 21%, 97% 12%, 88% 35%, 100% 50%, 88% 63%, 98% 86%, 76% 80%, 70% 100%, 56% 85%, 40% 98%, 36% 79%, 15% 87%, 24% 67%);
+  position: absolute;
+  z-index: 3;
+  top: 170px;
+  right: -168px;
+  display: block;
+  width: 230px;
+  height: 180px;
+  color: var(--burst-ink);
+  text-decoration: none;
+  transform: rotate(4deg);
+  transform-origin: 10% 60%;
+  transition: transform 0.2s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+
+.hero-surface-card.is-in .itch-burst {
+  animation: itch-burst-pop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) 0.9s backwards;
+}
+
+.hero-surface-card:not(.is-in) .itch-burst {
+  visibility: hidden;
+}
+
+.itch-burst:hover,
+.itch-burst:focus-visible {
+  transform: scale(1.1) rotate(-2deg);
+}
+
+.itch-burst-rays {
+  position: absolute;
+  inset: -40px -30px;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--burst-fill) 45%, transparent) 0deg 7deg, transparent 7deg 18deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 35%, transparent 100%);
+  animation: itch-burst-spin 14s linear infinite;
+  pointer-events: none;
+}
+
+.itch-burst-body {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(6px 7px 0 var(--burst-ink));
+  animation: itch-burst-pow 2.6s ease-in-out 1.6s infinite;
+}
+
+.itch-burst-body::before,
+.itch-burst-body::after {
+  content: '';
+  position: absolute;
+  clip-path: var(--burst);
+}
+
+.itch-burst-body::before {
+  inset: 0;
+  background: var(--burst-ink);
+}
+
+.itch-burst-body::after {
+  inset: 6px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--burst-hot) 30%, transparent) 1.6px, transparent 2px) 0 0 / 9px 9px,
+    var(--burst-fill);
+}
+
+.itch-burst-text {
+  position: absolute;
+  z-index: 1;
+  inset: 26% 10% 20% 24%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-7deg);
+}
+
+.itch-burst-text small {
+  font: 800 0.85rem/1 var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+.itch-burst-text strong {
+  font: 900 2.2rem/0.95 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--burst-hot);
+  -webkit-text-stroke: 1.5px var(--burst-ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--burst-ink);
+  animation: itch-burst-flash 2.6s steps(1) 1.6s infinite;
+}
+
+.hero-surface-card.is-stacked .itch-burst {
+  top: auto;
+  bottom: -96px;
+  right: -26px;
+  width: 170px;
+  height: 134px;
+}
+
+.hero-surface-card.is-stacked .itch-burst-text small {
+  font-size: 0.72rem;
+}
+
+.hero-surface-card.is-stacked .itch-burst-text strong {
+  font-size: 1.6rem;
+}
+
+@keyframes itch-burst-pop {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-35deg);
+  }
+}
+
+@keyframes itch-burst-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes itch-burst-pow {
+  0%, 62%, 100% {
+    transform: scale(1) rotate(0);
+    filter: drop-shadow(6px 7px 0 var(--burst-ink));
+  }
+  68% {
+    transform: scale(1.14) rotate(-4deg);
+    filter: drop-shadow(8px 9px 0 var(--burst-ink)) brightness(1.25);
+  }
+  74% {
+    transform: scale(0.95) rotate(3deg);
+  }
+  80% {
+    transform: scale(1.05) rotate(-1.5deg);
+  }
+  86% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes itch-burst-flash {
+  0%, 66% {
+    color: var(--burst-hot);
+  }
+  70% {
+    color: #fff;
+  }
+  76% {
+    color: var(--burst-hot);
+  }
+  80% {
+    color: #fff;
+  }
+  84% {
+    color: var(--burst-hot);
+  }
+}
+
 /* Phone: narrower card. The name wraps to two lines beside a smaller
    portrait, and the role runs full width under both. Set from
    narrowViewportAtom in HeroSurfaceCard (the card is a fixed-size world

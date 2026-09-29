@@ -16,6 +16,7 @@ import { useCardTilt } from './useCardTilt'
 // Plate eyebrow takes the role's lead ("CS @ UCLA"); the rest sits in the panel.
 const [roleLead, ...roleParts] = SITE.role.split(' · ')
 const roleRest = roleParts.join(' · ')
+const ITCH_URL = SITE_LINKS.find((l) => l.label === 'itch.io')?.url ?? 'https://destroh3.itch.io/'
 
 // These must mirror CameraRig's intro constants so the card is oriented to
 // face the actual intro-start camera position (frontal at blend=0).
@@ -143,6 +144,17 @@ export default function HeroSurfaceCard() {
         <div className="hero-card-portrait">
           <img src={SITE.portrait} alt={`Portrait of ${SITE.name}`} />
         </div>
+        {/* Comic burst popping out of the card's right edge, pointing people
+            at itch.io, where the full catalog lives. */}
+        <a className="itch-burst" href={ITCH_URL} target="_blank" rel="noreferrer">
+          <span className="itch-burst-rays" aria-hidden="true" />
+          <span className="itch-burst-body">
+            <span className="itch-burst-text">
+              <small>Play my games on</small>
+              <strong>itch.io!</strong>
+            </span>
+          </span>
+        </a>
         <div className="shard-panel">
         <div className="shard-bg" aria-hidden="true">
           <ShardFacets seed={3} />
@@ -163,11 +175,11 @@ export default function HeroSurfaceCard() {
           </div>
         </div>
 
-        {/* Order: Resume · GitHub · itch.io · LinkedIn · Get in touch — the
+        {/* Order: Resume · GitHub · LinkedIn · Get in touch (itch.io lives in the burst) — the
             CTA sits last and morphs IN PLACE into the email+copy+close (same
             slot, no new line). */}
         <div className="hero-card-actions">
-          {SITE_LINKS.map((link) => (
+          {SITE_LINKS.filter((link) => link.url !== ITCH_URL).map((link) => (
             <a key={link.label} className="shard-btn" href={link.url} target="_blank" rel="noreferrer">
               <span>{link.label}</span>
             </a>

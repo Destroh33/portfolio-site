@@ -39,7 +39,7 @@ export const PROJECT_TINT: Record<string, string> = {
   'broken-peaces': '#ff8c42',
   'prime-weaver': '#c86aff',
   motomania: '#ff8a2a',
-  'vr-lab': '#4de8ff',
+  mkultra: '#3dff7a',
   'ai-guide': '#7fd8f0',
 }
 

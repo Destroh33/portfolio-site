@@ -10,7 +10,7 @@ const R = PLANET_RADIUS
 //   Broken Peaces — volcanic world with its broken moons + a shard debris ring
 //   Prime Weaver  — arcane rune ring, woven web cocoon, rising spell wisps
 //   MotoMania     — an orbital ROAD with a motorcycle lapping it (light trail)
-//   VR Lab        — circling EEG brainwave + research satellite
+//   MKUltra       — targeting reticle ring + beam-scanning surveillance drones
 //   AI Guide      — glowing map pins + an animated navigation route
 // All cheap: canvas textures, additive points/lines, flat-shaded micro-meshes.
 
@@ -432,147 +432,124 @@ function RoadWithBike() {
   )
 }
 
-// ── VR Lab: node-network sphere with cyclically travelling signals ─────────
-// Circular nodes sit just above the surface, linked by straight lines; signals
-// light a node → travel its edge → light the next node → …, in overlapping
-// cascades (like the reference globe / neural-signal propagation).
+// ── MKUltra: targeting reticle + surveillance drones ───────────────────────
 
-// Network sits well ABOVE the surface so the straight chord links between
-// nodes clear the sphere instead of clipping through it (a chord between two
-// points on radius r dips to r·cos(halfAngle) at its midpoint).
-const NET_R = R * 1.22
+function makeReticleTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null
+  const W = 1024
+  const H = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'
+  const TICKS = 128
+  for (let k = 0; k < TICKS; k++) {
+    const seg = Math.floor(k / (TICKS / 4))
+    const local = k - seg * (TICKS / 4)
+    if (local < 3 || local > TICKS / 4 - 4) continue
+    const x = (k / TICKS) * W
+    const major = k % 8 === 0
+    ctx.fillRect(x, major ? 4 : 18, major ? 5 : 3, major ? H - 8 : H - 36)
+  }
+  for (let q = 0; q < 4; q++) {
+    const x = (q / 4) * W
+    ctx.fillRect(x - 26, 2, 52, 5)
+    ctx.fillRect(x - 26, H - 7, 52, 5)
+  }
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapT = THREE.RepeatWrapping
+  return tex
+}
 
-function NodeNetwork() {
-  const groupRef = useRef<THREE.Group>(null)
-
-  const { nodes, adjacency, lineGeo, nodeMeshRefs, ringMeshRefs, pulseGeo, pulseMat, signals } = useMemo(() => {
-    const rng = mulberry32(9091)
-    const N = 22
-    // Fibonacci-sphere nodes (even coverage), light jitter.
-    const nodes: THREE.Vector3[] = []
-    const golden = Math.PI * (3 - Math.sqrt(5))
-    for (let i = 0; i < N; i++) {
-      const y = 1 - (i / (N - 1)) * 2
-      const r = Math.sqrt(1 - y * y)
-      const th = golden * i + rng() * 0.3
-      nodes.push(new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r).multiplyScalar(NET_R))
-    }
-    // Edges: connect each node to its 3 nearest (deduped).
-    const edgeKey = new Set<string>()
-    const edges: [number, number][] = []
-    const adjacency: number[][] = nodes.map(() => [])
-    for (let i = 0; i < N; i++) {
-      const near = nodes
-        .map((p, j) => ({ j, d: i === j ? Infinity : p.distanceToSquared(nodes[i]) }))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 3)
-      for (const { j } of near) {
-        const key = i < j ? `${i}-${j}` : `${j}-${i}`
-        if (!edgeKey.has(key)) {
-          edgeKey.add(key)
-          edges.push([i, j])
-          adjacency[i].push(j)
-          adjacency[j].push(i)
-        }
-      }
-    }
-    const linePos = new Float32Array(edges.length * 6)
-    edges.forEach(([a, b], i) => linePos.set([...nodes[a].toArray(), ...nodes[b].toArray()], i * 6))
-    const lineGeo = new THREE.BufferGeometry()
-    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3))
-
-    // Travelling signal packets (rendered as bright points).
-    const SIG = 9
-    const signals = Array.from({ length: SIG }).map(() => {
-      const from = Math.floor(rng() * N)
-      const to = adjacency[from][Math.floor(rng() * adjacency[from].length)]
-      return { from, to, t: rng() }
-    })
-    const pulseGeo = new THREE.BufferGeometry()
-    pulseGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIG * 3), 3))
-    pulseGeo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(SIG).fill(1), 1))
-    const pulseMat = makeAlphaPointsMaterial('#c8fbff', R * 0.09)
-
-    return {
-      nodes,
-      adjacency,
-      lineGeo,
-      nodeMeshRefs: { current: [] as (THREE.Mesh | null)[] },
-      ringMeshRefs: { current: [] as (THREE.Mesh | null)[] },
-      pulseGeo,
-      pulseMat,
-      signals,
-    }
-  }, [])
-
-  // Per-node "excitation" level, decays each frame; a signal arriving re-lights.
-  const excite = useRef<number[]>(nodes.map(() => 0))
-
+function TargetReticle() {
+  const outerRef = useRef<THREE.Mesh>(null)
+  const innerRef = useRef<THREE.Mesh>(null)
+  const tex = useMemo(makeReticleTexture, [])
+  const outerGeo = useMemo(() => makeAnnulusGeometry(R * 1.62, R * 1.74, 160), [])
+  const innerGeo = useMemo(() => makeAnnulusGeometry(R * 1.36, R * 1.42, 160), [])
   useFrame(({ clock }, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.05
-    const dt = Math.min(delta, 0.1)
-    const t = clock.getElapsedTime()
-
-    // Advance signals; on arrival, excite the node and re-emit onward.
-    const pulsePos = pulseGeo.getAttribute('position') as THREE.BufferAttribute
-    signals.forEach((sig, i) => {
-      sig.t += dt * 0.9
-      if (sig.t >= 1) {
-        sig.t = 0
-        excite.current[sig.to] = 1
-        const nextChoices = adjacency[sig.to].filter((n) => n !== sig.from)
-        const next = (nextChoices.length ? nextChoices : adjacency[sig.to])[
-          Math.floor(Math.random() * (nextChoices.length || adjacency[sig.to].length))
-        ]
-        sig.from = sig.to
-        sig.to = next
-      }
-      const a = nodes[sig.from]
-      const b = nodes[sig.to]
-      pulsePos.setXYZ(i, a.x + (b.x - a.x) * sig.t, a.y + (b.y - a.y) * sig.t, a.z + (b.z - a.z) * sig.t)
-    })
-    pulsePos.needsUpdate = true
-
-    // Node glow: excitation decays; a small ambient shimmer keeps them alive.
-    excite.current.forEach((e, i) => {
-      excite.current[i] = Math.max(0, e - dt * 1.4)
-      const glow = 0.35 + 0.65 * excite.current[i] + 0.1 * Math.sin(t * 3 + i)
-      const nm = nodeMeshRefs.current[i]
-      const rm = ringMeshRefs.current[i]
-      if (nm) (nm.material as THREE.MeshBasicMaterial).opacity = glow
-      if (rm) {
-        const s = 1 + excite.current[i] * 0.8
-        rm.scale.setScalar(s)
-        ;(rm.material as THREE.MeshBasicMaterial).opacity = 0.5 * glow
-      }
-    })
+    if (outerRef.current) outerRef.current.rotation.y += delta * 0.12
+    if (innerRef.current) {
+      const t = clock.getElapsedTime()
+      innerRef.current.rotation.y = Math.floor(t / 1.6) * 0.6 + Math.min((t % 1.6) / 0.25, 1) * 0.6
+    }
   })
-
+  if (!tex) return null
   return (
-    <group ref={groupRef} rotation={[0.2, 0, 0.1]}>
-      {/* links */}
-      <lineSegments geometry={lineGeo}>
-        <lineBasicMaterial color="#5fd4ff" transparent opacity={0.28} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </lineSegments>
-      {/* nodes: bright core + a ring halo, oriented to face outward */}
-      {nodes.map((p, i) => {
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), p.clone().normalize())
-        return (
-          <group key={i} position={p} quaternion={q}>
-            <mesh ref={(el) => (nodeMeshRefs.current[i] = el)}>
-              <sphereGeometry args={[R * 0.045, 12, 12]} />
-              <meshBasicMaterial color="#c8fbff" transparent opacity={0.5} depthWrite={false} blending={THREE.AdditiveBlending} />
+    <group rotation={[1.2, 0, -0.25]}>
+      <mesh ref={outerRef} geometry={outerGeo}>
+        <meshBasicMaterial map={tex} color="#ff3b4a" transparent opacity={0.8} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={innerRef} geometry={innerGeo}>
+        <meshBasicMaterial map={tex} color="#ff8a94" transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  )
+}
+
+const DRONE_R = 1.55
+interface DroneOrbit {
+  tilt: [number, number, number]
+  speed: number
+  phase: number
+}
+
+const DRONES: DroneOrbit[] = [
+  { tilt: [0.35, 0, 0.1], speed: 0.22, phase: 0 },
+  { tilt: [-0.5, 0, 0.4], speed: -0.17, phase: 2.1 },
+  { tilt: [0.1, 0, -0.7], speed: 0.14, phase: 4.2 },
+]
+
+function SurveillanceDrone({ tilt, speed, phase }: DroneOrbit) {
+  const orbitRef = useRef<THREE.Group>(null)
+  const beamRef = useRef<THREE.Group>(null)
+  const beamLen = R * (DRONE_R - 1.02)
+  useFrame(({ clock }, delta) => {
+    if (orbitRef.current) orbitRef.current.rotation.y += delta * speed
+    if (beamRef.current) {
+      const t = clock.getElapsedTime() + phase
+      beamRef.current.rotation.set(0, Math.sin(t * 0.9) * 0.35, Math.sin(t * 1.3) * 0.25)
+    }
+  })
+  return (
+    <group rotation={tilt}>
+      <group ref={orbitRef} rotation={[0, phase, 0]}>
+        <group position={[R * DRONE_R, 0, 0]}>
+          <mesh>
+            <octahedronGeometry args={[R * 0.07, 0]} />
+            <meshStandardMaterial color="#2a2d36" metalness={0.7} roughness={0.35} flatShading />
+          </mesh>
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[0, 0, s * R * 0.11]}>
+              <boxGeometry args={[R * 0.05, R * 0.012, R * 0.12]} />
+              <meshStandardMaterial color="#3a3f4c" metalness={0.6} roughness={0.4} flatShading />
             </mesh>
-            <mesh ref={(el) => (ringMeshRefs.current[i] = el)}>
-              <ringGeometry args={[R * 0.06, R * 0.08, 20]} />
-              <meshBasicMaterial color="#7fe8ff" transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+          ))}
+          <mesh position={[-R * 0.06, 0, 0]}>
+            <sphereGeometry args={[R * 0.022, 10, 10]} />
+            <meshBasicMaterial color="#ff5a66" />
+          </mesh>
+          <group ref={beamRef}>
+            <mesh position={[-beamLen / 2 - R * 0.06, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <coneGeometry args={[R * 0.2, beamLen, 24, 1, true]} />
+              <meshBasicMaterial color="#ff2a3d" transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
             </mesh>
           </group>
-        )
-      })}
-      {/* travelling signal packets */}
-      <points geometry={pulseGeo} material={pulseMat} frustumCulled={false} />
+        </group>
+      </group>
     </group>
+  )
+}
+
+function SurveillanceDrones() {
+  return (
+    <>
+      {DRONES.map((d, i) => (
+        <SurveillanceDrone key={i} {...d} />
+      ))}
+    </>
   )
 }
 
@@ -619,8 +596,13 @@ export default function PlanetDetail({ id }: { id: string }) {
       )
     case 'motomania':
       return <RoadWithBike />
-    case 'vr-lab':
-      return <NodeNetwork />
+    case 'mkultra':
+      return (
+        <>
+          <TargetReticle />
+          <SurveillanceDrones />
+        </>
+      )
     case 'ai-guide':
       // The grid-map surface carries the identity; just the survey satellite
       // orbits it. (Map pins + route removed — their bright heads bloomed into
