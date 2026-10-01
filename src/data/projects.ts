@@ -11,6 +11,7 @@ export interface ProjectLinks {
   github?: string
   demo?: string
   slides?: string
+  youtube?: string
 }
 
 export interface Project {
@@ -107,7 +108,7 @@ export const PROJECTS: Project[] = [
     },
   },
 
-  // ─── Belt (4), lightweight hover-popup only ────────────────────────────
+  // ─── Belt (5), lightweight hover-popup only ────────────────────────────
   {
     id: 'rebel-stars',
     name: 'Rebel Stars',
@@ -160,6 +161,21 @@ export const PROJECTS: Project[] = [
     tags: ['Unity', 'C#', '2D Platformer'],
     media: { type: 'image', src: '/images/slimesara.png' },
     links: { demo: 'https://destroh3.itch.io/slimesara' },
+  },
+  {
+    id: 'dlreel',
+    name: 'dlreel',
+    tier: 'belt',
+    order: 5,
+    icon: 'dlreel',
+    description: 'Automated highlight reels from Deadlock Night Shift broadcasts.',
+    status: 'active',
+    tags: ['Python', 'FFmpeg', 'Template Matching', 'YouTube Data API'],
+    media: { type: 'youtube', src: 'https://www.youtube.com/embed/1oBjDkRwkPI' },
+    links: {
+      github: 'https://github.com/Destroh33/DNSHighlights',
+      youtube: 'https://www.youtube.com/@DeadlockProfessionalHighlights',
+    },
   },
 ]
 

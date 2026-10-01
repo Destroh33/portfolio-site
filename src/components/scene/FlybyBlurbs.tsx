@@ -179,6 +179,11 @@ export default function FlybyBlurbs() {
                           <span>Slides</span>
                         </a>
                       )}
+                      {project.links.youtube && (
+                        <a className="shard-btn" href={project.links.youtube} target="_blank" rel="noreferrer">
+                          <span>YouTube</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                   {/* Skip the embed slot entirely for the one case that renders
